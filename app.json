@@ -1,6 +1,7 @@
 {
   "expo": {
     "name": "shoe-shop",
+    "scheme": "shoe-shop",
     "slug": "shoe-shop",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -23,6 +24,10 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store"
+    ]
   }
 }
