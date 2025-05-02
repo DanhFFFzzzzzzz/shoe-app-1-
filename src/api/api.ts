@@ -2,23 +2,28 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../providers/auth-provider';
 import { generateOrderSlug } from '../utils/utils';
+import { Tables } from '../types/database.types';
 
-export const getProductsAndCategories = () => {
-  return useQuery({
-    queryKey: ['products', 'categories'],
-    queryFn: async () => {
-      const [products, categories] = await Promise.all([
-        supabase.from('product').select('*'),
-        supabase.from('category').select('*'),
-      ]);
+type ProductsAndCategories = {
+  products: Tables<'product'>[];
+  categories: Tables<'category'>[];
+};
 
-      if (products.error || categories.error) {
-        throw new Error('An error occurred while fetching data');
-      }
+export const getProductsAndCategories = async (): Promise<ProductsAndCategories> => {
+  const [products, categories] = await Promise.all([
+    supabase.from('product').select('*'),
+    supabase.from('category').select('*'),
+  ]);
 
-      return { products: products.data, categories: categories.data };
-    },
-  });
+  if (products.error || categories.error) {
+    console.error('Product error:', products.error);
+    console.error('Category error:', categories.error);
+    throw new Error(
+      `An error occurred while fetching data: ${products.error?.message || ''} ${categories.error?.message || ''}`
+    );
+  }
+
+  return { products: products.data, categories: categories.data };
 };
 
 export const getProduct = (slug: string) => {

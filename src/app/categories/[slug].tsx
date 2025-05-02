@@ -27,7 +27,7 @@ const Category = () => {
   });
 
   if (isLoading) return <ActivityIndicator />;
-  if (error || !data) return <Text>Error: {error?.message}</Text>;
+  if (error || !data) return <Text>Error: {error?.message ?? String(error)}</Text>;
 
   const category = data.categories.find((cat: Tables<'category'>) => cat.slug === slug);
   if (!category) return <Redirect href='/404' />;

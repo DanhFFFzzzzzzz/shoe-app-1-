@@ -10,9 +10,13 @@ import { PRODUCTS } from '../../../assets/products';
 import { ProductListItem } from '../../components/product-list-item';
 import { ListHeader } from '../../components/list-header';
 import { getProductsAndCategories } from '../../api/api';
+import { useQuery } from '@tanstack/react-query';
 
 const Home = () => {
-  const { data, error, isLoading } = getProductsAndCategories();
+  const { data, error, isLoading } = useQuery({
+    queryKey: ['productsAndCategories'],
+    queryFn: getProductsAndCategories,
+  });
 
   if (isLoading) return <ActivityIndicator />;
 
