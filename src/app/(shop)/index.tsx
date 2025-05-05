@@ -5,6 +5,7 @@ import {
   View,
   Text,
 } from 'react-native';
+import React from 'react';
 
 import { PRODUCTS } from '../../../assets/products';
 import { ProductListItem } from '../../components/product-list-item';

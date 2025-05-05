@@ -51,7 +51,11 @@ export default function AuthProvider({ children }: PropsWithChildren) {
         if (error) {
           console.error('error', error);
         } else {
-          setUser(user);
+          setUser({
+            expo_notification_token: null,
+            stripe_customer_id: null,
+            ...user
+          });
         }
       }
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 import { useCartStore } from '../store/cart-store';
 import { StatusBar } from 'expo-status-bar';
 import { createOrder, createOrderItem } from '../api/api';
+import * as Linking from 'expo-linking';
 //import { openStripeCheckout, setupStripePaymentSheet } from '../lib/stripe';
 
 type CartItemType = {
@@ -82,10 +83,34 @@ export default function Cart() {
   const { mutateAsync: createSupabaseOrder } = createOrder();
   const { mutateAsync: createSupabaseOrderItem } = createOrderItem();
 
+  // Lắng nghe callback từ PayPal (deep link)
+  useEffect(() => {
+    const handleDeepLink = (event: { url: string }) => {
+      const url = event.url;
+      if (url.startsWith('myshoesapp://paypal-success')) {
+        Alert.alert('Thanh toán thành công qua PayPal!');
+        resetCart();
+      } else if (url.startsWith('myshoesapp://paypal-cancel')) {
+        Alert.alert('Bạn đã hủy thanh toán PayPal.');
+      }
+    };
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
   const handleCheckout = async () => {
+    if (!items || items.length === 0) {
+      Alert.alert('Thông báo', 'Giỏ hàng của bạn đang trống!');
+      return;
+    }
     const totalPrice = parseFloat(getTotalPrice().toFixed(2));
     try {
       const order = await createSupabaseOrder({ totalPrice });
+      if (!order || !order.id) {
+        throw new Error('Không thể tạo đơn hàng. Vui lòng thử lại!');
+      }
       await createSupabaseOrderItem(
         items.map(item => ({
           orderId: order.id,
@@ -96,13 +121,34 @@ export default function Cart() {
       alert('Order created successfully');
       resetCart();
     } catch (error) {
-      let message = error?.message || 'Failed to process your order. Please try again.';
+      let message = (error instanceof Error ? error.message : String(error)) || 'Failed to process your order. Please try again.';
       if (message.includes('Function not implemented')) {
         message = 'Lỗi hệ thống: Chức năng trừ số lượng sản phẩm chưa được cấu hình trên máy chủ. Vui lòng liên hệ quản trị viên hoặc thử lại sau!';
       }
       Alert.alert('Error', message);
     }
   };
+
+  // Thêm hàm thanh toán PayPal với return/cancel URL
+  const handlePayPal = async () => {
+    const total = getTotalPrice();
+    const returnUrl = encodeURIComponent('myshoesapp://paypal-success');
+    const cancelUrl = encodeURIComponent('myshoesapp://paypal-cancel');
+    // Thay business email bằng email PayPal sandbox của bạn
+    const paypalUrl = `https://www.sandbox.paypal.com/cgi-bin/webscr?cmd=_xclick&business=sb-xxxxxxx@business.example.com&item_name=Order&amount=${total}&currency_code=USD&return=${returnUrl}&cancel_return=${cancelUrl}`;
+    Linking.openURL(paypalUrl);
+  };
+
+  if (!items || items.length === 0) {
+    return (
+      <View style={styles.container}>
+        <StatusBar style={Platform.OS === 'ios' ? 'light' : 'auto'} />
+        <Text style={{ textAlign: 'center', marginTop: 40, fontSize: 18 }}>
+          Giỏ hàng của bạn đang trống!
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -128,7 +174,13 @@ export default function Cart() {
           onPress={handleCheckout}
           style={styles.checkoutButton}
         >
-          <Text style={styles.checkoutButtonText}>Checkout</Text>
+          <Text style={styles.checkoutButtonText}>Thanh toán</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={handlePayPal}
+          style={[styles.checkoutButton, { backgroundColor: '#ffc439', marginTop: 8 }]}
+        >
+          <Text style={[styles.checkoutButtonText, { color: '#222' }]}>Pay with PayPal</Text>
         </TouchableOpacity>
       </View>
     </View>

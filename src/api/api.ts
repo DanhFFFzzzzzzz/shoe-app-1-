@@ -16,8 +16,6 @@ export const getProductsAndCategories = async (): Promise<ProductsAndCategories>
   ]);
 
   if (products.error || categories.error) {
-    console.error('Product error:', products.error);
-    console.error('Category error:', categories.error);
     throw new Error(
       `An error occurred while fetching data: ${products.error?.message || ''} ${categories.error?.message || ''}`
     );

@@ -13,7 +13,6 @@ export const useOrderUpdateSubscription = () => {
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'order' },
         payload => {
-          console.log('Change received!', payload);
           queryClient.invalidateQueries({
             queryKey: ['orders'],
           });

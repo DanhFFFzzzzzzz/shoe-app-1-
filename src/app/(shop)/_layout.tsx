@@ -52,6 +52,24 @@ const TabsLayout = () => {
                     }
                   }} 
             />
+            <Tabs.Screen
+              name="search/index"
+              options={{
+                title: 'Search',
+                tabBarIcon: (props: React.ComponentProps<typeof FontAwesome>) => {
+                  return <TabBarIcon {...props} name='search' color="#1BC464" />
+                }
+              }}
+            />
+            <Tabs.Screen
+              name="account/index"
+              options={{
+                title: 'Account',
+                tabBarIcon: (props: React.ComponentProps<typeof FontAwesome>) => {
+                  return <TabBarIcon {...props} name='user' color="#1BC464" />
+                }
+              }}
+            />
             </Tabs>
         </SafeAreaView>
     );

@@ -5,8 +5,13 @@ import * as aesjs from 'aes-js';
 import 'react-native-get-random-values';
 import { Database } from '../types/database.types';
 
+
+
 const supabaseUrl = "https://alzndhssbtncurvytlqe.supabase.co";
 const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFsem5kaHNzYnRuY3Vydnl0bHFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5NDQ5NjcsImV4cCI6MjA2MTUyMDk2N30.2JUUiNeIZ7-ZNpcwyHxvQV52b9rw-f1i3YFZw_43FIg";
+
+
+
 
 // As Expo's SecureStore does not support values larger than 2048
 // bytes, an AES-256 key is generated and stored in SecureStore, while

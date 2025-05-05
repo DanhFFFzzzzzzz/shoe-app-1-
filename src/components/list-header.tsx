@@ -16,6 +16,10 @@ import { useCartStore } from '../store/cart-store';
 import { supabase } from '../lib/supabase';
 import { getProductsAndCategories } from '../api/api';
 import { Tables } from '../types/database.types';
+import React, { useEffect, useState } from 'react';
+import { useAuth } from '../providers/auth-provider';
+
+const defaultAvatar = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
 
 export const ListHeader = ({
   categories,
@@ -23,6 +27,30 @@ export const ListHeader = ({
   categories: Tables<'category'>[];
 }) => {
   const { getItemCount } = useCartStore();
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<{ name: string; avatar_url: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('users')
+        .select('name, avatar_url')
+        .eq('id', user.id)
+        .single();
+      if (!error && data) {
+        setProfile({
+          name: data.name || 'No Name',
+          avatar_url: data.avatar_url || defaultAvatar,
+        });
+      } else {
+        setProfile({ name: 'No Name', avatar_url: defaultAvatar });
+      }
+      setLoading(false);
+    };
+    if (user?.id) fetchProfile();
+  }, [user?.id]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -33,11 +61,17 @@ export const ListHeader = ({
       <View style={styles.headerTop}>
         <View style={styles.headerLeft}>
           <View style={styles.avatarContainer}>
-            <Image
-              source={{ uri: 'https://static.vecteezy.com/system/resources/previews/011/675/365/original/man-avatar-image-for-profile-png.png' }}
-              style={styles.avatarImage}
-            />
-            <Text style={styles.avatarText}>Dennis</Text>
+            {loading ? (
+              <ActivityIndicator size="small" color="#0a3781" />
+            ) : (
+              <>
+                <Image
+                  source={{ uri: profile?.avatar_url || defaultAvatar }}
+                  style={styles.avatarImage}
+                />
+                <Text style={styles.avatarText}>{profile?.name || 'No Name'}</Text>
+              </>
+            )}
           </View>
         </View>
         
