@@ -187,7 +187,9 @@ CREATE TABLE IF NOT EXISTS "public"."product" (
     "price" bigint NOT NULL,
     "heroImage" "text" NOT NULL,
     "category" bigint NOT NULL,
-    "maxQuantity" bigint NOT NULL
+    "maxQuantity" bigint NOT NULL,
+    "description" "text",
+    "availableSizes" bigint[]
 );
 
 

@@ -22,6 +22,7 @@ type CartItemType = {
   price: number;
   quantity: number;
   maxQuantity: number;
+  size: number;
 };
 
 type CartItemProps = {
@@ -43,6 +44,7 @@ const CartItem = ({
       <View style={styles.itemDetails}>
         <Text style={styles.itemTitle}>{item.title}</Text>
         <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+        <Text style={styles.itemSize}>Size: {item.size}</Text>
         <View style={styles.quantityContainer}>
           <TouchableOpacity
             onPress={() => onDecrement(item.id)}
@@ -64,7 +66,7 @@ const CartItem = ({
         onPress={() => onRemove(item.id)}
         style={styles.removeButton}
       >
-        <Text style={styles.removeButtonText}>Remove</Text>
+        <Text style={styles.removeButtonText}>Xóa</Text>
       </TouchableOpacity>
     </View>
   );
@@ -169,7 +171,7 @@ export default function Cart() {
       />
 
       <View style={styles.footer}>
-        <Text style={styles.totalText}>Total: ${getTotalPrice()}</Text>
+        <Text style={styles.totalText}>Tổng tiền: ${getTotalPrice()}</Text>
         <TouchableOpacity
           onPress={handleCheckout}
           style={styles.checkoutButton}
@@ -180,7 +182,7 @@ export default function Cart() {
           onPress={handlePayPal}
           style={[styles.checkoutButton, { backgroundColor: '#ffc439', marginTop: 8 }]}
         >
-          <Text style={[styles.checkoutButtonText, { color: '#222' }]}>Pay with PayPal</Text>
+          <Text style={[styles.checkoutButtonText, { color: '#222' }]}>Thanh toán qua PayPal</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -221,6 +223,11 @@ const styles = StyleSheet.create({
   itemPrice: {
     fontSize: 16,
     color: '#888',
+    marginBottom: 4,
+  },
+  itemSize: {
+    fontSize: 16,
+    color: '#666',
     marginBottom: 4,
   },
   itemQuantity: {

@@ -8,6 +8,7 @@ export type CartItemType = {
   price: number;
   quantity: number;
   maxQuantity: number;
+  size: number;
 };
 
 // Định nghĩa trạng thái và các hàm thao tác với giỏ hàng
@@ -15,7 +16,7 @@ type CartState = {
   items: CartItemType[];
 
   // Thêm sản phẩm vào giỏ
-  addItem: (item: Partial<CartItemType> & Pick<CartItemType, 'id' | 'title' | 'heroImage' | 'price'>) => void;
+  addItem: (item: Partial<CartItemType> & Pick<CartItemType, 'id' | 'title' | 'heroImage' | 'price' | 'size'>) => void;
 
   // Xoá sản phẩm khỏi giỏ
   removeItem: (id: number) => void;
@@ -48,16 +49,17 @@ export const useCartStore = create<CartState>((set, get) => ({
       ...item,
       quantity: item.quantity ?? 1,
       maxQuantity: item.maxQuantity ?? 10,
+      size: item.size,
     };
 
-    const existingItem = get().items.find(i => i.id === item.id);
+    const existingItem = get().items.find(i => i.id === item.id && i.size === item.size);
 
     if (existingItem) {
       // Nếu sản phẩm đã có trong giỏ, tăng số lượng nhưng không vượt quá giới hạn
       const newQuantity = Math.min(existingItem.quantity + (defaultItem.quantity ?? 1), existingItem.maxQuantity);
       set(state => ({
         items: state.items.map(i =>
-          i.id === item.id
+          i.id === item.id && i.size === item.size
             ? { ...i, quantity: newQuantity }
             : i
         ),
