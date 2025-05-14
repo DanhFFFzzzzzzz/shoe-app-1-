@@ -28,19 +28,28 @@ export const getProduct = (slug: string) => {
   return useQuery({
     queryKey: ['product', slug],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: product, error } = await supabase
         .from('product')
         .select('*')
         .eq('slug', slug)
         .single();
 
-      if (error || !data) {
+      if (error || !product) {
         throw new Error(
           'An error occurred while fetching data: ' + error?.message
         );
       }
 
-      return data;
+      const { data: sizes, error: sizeError } = await supabase
+        .from('product_size')
+        .select('size, quantity')
+        .eq('product', product.id);
+
+      if (sizeError) {
+        throw new Error('An error occurred while fetching sizes: ' + sizeError.message);
+      }
+
+      return { ...product, sizes: sizes || [] };
     },
   });
 };
@@ -74,18 +83,18 @@ export const getCategoryAndProducts = (categorySlug: string) => {
 };
 
 export const getMyOrders = () => {
-  const {
-    user: { id },
-  } = useAuth();
-
+  const { user } = useAuth();
+  if (!user || !user.id) {
+    return { data: [], isLoading: false, error: null };
+  }
   return useQuery({
-    queryKey: ['orders', id],
+    queryKey: ['orders', user.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('order')
         .select('*')
         .order('created_at', { ascending: false })
-        .eq('user', id);
+        .eq('user', user.id);
 
       if (error)
         throw new Error(

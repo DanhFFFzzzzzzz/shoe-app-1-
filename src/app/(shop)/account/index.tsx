@@ -25,6 +25,11 @@ const AccountScreen = () => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    if (!user || !user.id) {
+      setLoading(true);
+      setProfile(null);
+      return;
+    }
     const fetchProfile = async () => {
       setLoading(true);
       const { data, error } = await supabase
@@ -48,7 +53,7 @@ const AccountScreen = () => {
       }
       setLoading(false);
     };
-    if (user?.id) fetchProfile();
+    fetchProfile();
   }, [user?.id]);
 
   const handleAvatarChange = async () => {
@@ -98,7 +103,7 @@ const AccountScreen = () => {
     }
   };
 
-  if (loading || !profile) {
+  if (loading || !profile || !user || !user.id) {
     return <ActivityIndicator style={{ flex: 1 }} size="large" color="#0a3781" />;
   }
 

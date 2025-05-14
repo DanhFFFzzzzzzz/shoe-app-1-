@@ -18,8 +18,7 @@ export const PRODUCTS: Product[] = [
       slug: 'sandals',
     },
     maxQuantity: 5,
-    description: 'Sandal Adidas với thiết kế thoáng khí, đế cao su chống trượt, phù hợp cho mọi hoạt động ngoài trời. Chất liệu bền bỉ, êm ái khi mang.',
-    availableSizes: [34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45],
+    description: 'Sandal Adidas với thiết kế thoáng khí, đế cao su chống trượt, phù hợp cho mọi hoạt động ngoài trời. Chất liệu bền bỉ, êm ái khi mang.'
   },
   {
     id: 5,
@@ -37,8 +36,7 @@ export const PRODUCTS: Product[] = [
       slug: 'sandals',
     },
     maxQuantity: 7,
-    description: 'Sandal Nike với công nghệ đệm êm ái, thiết kế thời trang và chất liệu bền bỉ. Phù hợp cho các hoạt động thể thao và thời trang hàng ngày.',
-    availableSizes: [34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45],
+    description: 'Sandal Nike với công nghệ đệm êm ái, thiết kế thời trang và chất liệu bền bỉ. Phù hợp cho các hoạt động thể thao và thời trang hàng ngày.'
   },
   {
     id: 2,
@@ -56,8 +54,7 @@ export const PRODUCTS: Product[] = [
       slug: 'sneakers',
     },
     maxQuantity: 10,
-    description: 'Sneaker Adidas với công nghệ Boost, đệm êm ái và thiết kế thời trang. Phù hợp cho chạy bộ và thời trang đường phố.',
-    availableSizes: [34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45],
+    description: 'Sneaker Adidas với công nghệ Boost, đệm êm ái và thiết kế thời trang. Phù hợp cho chạy bộ và thời trang đường phố.'
   },
   {
     id: 6,
@@ -75,8 +72,7 @@ export const PRODUCTS: Product[] = [
       slug: 'sneakers',
     },
     maxQuantity: 12,
-    description: 'Sneaker Nike với công nghệ Air, đệm êm ái và thiết kế thời trang. Phù hợp cho chạy bộ và thời trang đường phố.',
-    availableSizes: [34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45],
+    description: 'Sneaker Nike với công nghệ Air, đệm êm ái và thiết kế thời trang. Phù hợp cho chạy bộ và thời trang đường phố.'
   },
   {
     id: 3,
@@ -94,8 +90,7 @@ export const PRODUCTS: Product[] = [
       slug: 'shoes',
     },
     maxQuantity: 15,
-    description: 'Giày da cao cấp với thiết kế sang trọng, chất liệu da thật và đế cao su chống trượt. Phù hợp cho công sở và các dịp quan trọng.',
-    availableSizes: [34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45],
+    description: 'Giày da cao cấp với thiết kế sang trọng, chất liệu da thật và đế cao su chống trượt. Phù hợp cho công sở và các dịp quan trọng.'
   },
   {
     id: 4,
@@ -114,8 +109,7 @@ export const PRODUCTS: Product[] = [
       slug: 'slippers',
     },
     maxQuantity: 3,
-    description: 'Dép đi trong nhà với chất liệu êm ái, thiết kế đơn giản và tiện lợi. Phù hợp cho sử dụng trong nhà và các hoạt động thư giãn.',
-    availableSizes: [34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45],
+    description: 'Dép đi trong nhà với chất liệu êm ái, thiết kế đơn giản và tiện lợi. Phù hợp cho sử dụng trong nhà và các hoạt động thư giãn.'
   },
   {
     id: 7,
@@ -133,7 +127,6 @@ export const PRODUCTS: Product[] = [
       slug: 'sneakers',
     },
     maxQuantity: 8,
-    description: 'Sneaker Puma với thiết kế thể thao, đệm êm ái và chất liệu bền bỉ. Phù hợp cho các hoạt động thể thao và thời trang hàng ngày.',
-    availableSizes: [34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45],
+    description: 'Sneaker Puma với thiết kế thể thao, đệm êm ái và chất liệu bền bỉ. Phù hợp cho các hoạt động thể thao và thời trang hàng ngày.'
   },
 ];

@@ -18,6 +18,7 @@ import { getProductsAndCategories } from '../api/api';
 import { Tables } from '../types/database.types';
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../providers/auth-provider';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const defaultAvatar = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
 
@@ -30,8 +31,14 @@ export const ListHeader = ({
   const { user } = useAuth();
   const [profile, setProfile] = useState<{ name: string; avatar_url: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [recentProducts, setRecentProducts] = useState<any[]>([]);
 
   useEffect(() => {
+    if (!user || !user.id) {
+      setProfile({ name: 'No Name', avatar_url: defaultAvatar });
+      setLoading(false);
+      return;
+    }
     const fetchProfile = async () => {
       setLoading(true);
       const { data, error } = await supabase
@@ -49,7 +56,16 @@ export const ListHeader = ({
       }
       setLoading(false);
     };
-    if (user?.id) fetchProfile();
+    fetchProfile();
+
+    // Lấy sản phẩm đã xem gần đây từ AsyncStorage
+    const fetchRecent = async () => {
+      try {
+        const json = await AsyncStorage.getItem('recently_viewed');
+        if (json) setRecentProducts(JSON.parse(json));
+      } catch {}
+    };
+    fetchRecent();
   }, [user?.id]);
 
   const handleSignOut = async () => {
@@ -108,7 +124,33 @@ export const ListHeader = ({
           source={require('../../assets/images/hero.png')}
           style={styles.heroImage}
         />
+        <View style={styles.bannerTextBox}>
+          <Text style={styles.bannerTitle}>Shoe Discount Sale</Text>
+          <Text style={styles.bannerSubtitle}>Hurry for 25% Discounts on all shoes!</Text>
+        </View>
       </View>
+
+      {/* Recently viewed section */}
+      {recentProducts.length > 0 && (
+        <View style={styles.recentSection}>
+          <Text style={styles.recentTitle}>Đã xem gần đây</Text>
+          <FlatList
+            data={recentProducts}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={item => item.id.toString()}
+            renderItem={({ item }) => (
+              <Link asChild href={`/product/${item.slug}`}>
+                <Pressable style={styles.recentItem}>
+                  <Image source={{ uri: item.heroImage }} style={styles.recentImage} />
+                  <Text style={styles.recentName} numberOfLines={1}>{item.title}</Text>
+                </Pressable>
+              </Link>
+            )}
+            contentContainerStyle={styles.recentList}
+          />
+        </View>
+      )}
 
       <View style={styles.categoriesContainer}>
         <Text style={styles.sectionTitle}>Categories</Text>
@@ -222,5 +264,47 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  bannerTextBox: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 10,
+  },
+  bannerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  bannerSubtitle: {
+    fontSize: 16,
+    color: 'white',
+  },
+  recentSection: {
+    padding: 10,
+  },
+  recentTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  recentItem: {
+    width: 100,
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  recentImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginBottom: 5,
+  },
+  recentName: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  recentList: {
+    paddingHorizontal: 10,
   },
 });

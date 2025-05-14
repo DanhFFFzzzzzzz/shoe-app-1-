@@ -21,7 +21,7 @@ export const ProductListItem = ({ product }: ProductListItemProps) => {
             resizeMode="cover"
           />
           <Text style={styles.title}>{product.title}</Text>
-          <Text style={styles.price}>${product.price.toFixed(2)}</Text>
+          <Text style={styles.price}>{product.price.toLocaleString('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 })}</Text>
         </View>
       </Pressable>
     </Link>

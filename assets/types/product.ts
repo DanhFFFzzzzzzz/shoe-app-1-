@@ -11,5 +11,4 @@ export type Product = {
   category: Omit<Category, 'products'>;
   maxQuantity: number;
   description: string;
-  availableSizes: number[];
 };

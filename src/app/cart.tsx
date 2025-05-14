@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,13 @@ import {
   TouchableOpacity,
   FlatList,
   Image,
+  TextInput,
 } from 'react-native';
 import { useCartStore } from '../store/cart-store';
 import { StatusBar } from 'expo-status-bar';
 import { createOrder, createOrderItem } from '../api/api';
 import * as Linking from 'expo-linking';
+import * as Location from 'expo-location';
 //import { openStripeCheckout, setupStripePaymentSheet } from '../lib/stripe';
 
 type CartItemType = {
@@ -102,6 +104,37 @@ export default function Cart() {
     };
   }, []);
 
+  // Thông tin khách hàng
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerAddress, setCustomerAddress] = useState('');
+  const [loadingLocation, setLoadingLocation] = useState(false);
+
+  // Hàm lấy vị trí hiện tại và reverse geocode
+  const handlePickLocation = async () => {
+    setLoadingLocation(true);
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Lỗi', 'Bạn cần cấp quyền truy cập vị trí!');
+        setLoadingLocation(false);
+        return;
+      }
+      let location = await Location.getCurrentPositionAsync({});
+      let geocode = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+      if (geocode && geocode.length > 0) {
+        const addr = `${geocode[0].street || ''}, ${geocode[0].district || ''}, ${geocode[0].city || geocode[0].region || ''}`;
+        setCustomerAddress(addr);
+      }
+    } catch (e) {
+      Alert.alert('Lỗi', 'Không thể lấy vị trí!');
+    }
+    setLoadingLocation(false);
+  };
+
   const handleCheckout = async () => {
     if (!items || items.length === 0) {
       Alert.alert('Thông báo', 'Giỏ hàng của bạn đang trống!');
@@ -156,6 +189,49 @@ export default function Cart() {
     <View style={styles.container}>
       <StatusBar style={Platform.OS === 'ios' ? 'light' : 'auto'} />
 
+      {/* Form nhập thông tin khách hàng */}
+      <View style={styles.customerForm}>
+        <Text style={styles.formTitle}>Thông tin nhận hàng</Text>
+        <View style={styles.formGroup}>
+          <Text style={styles.formLabel}>Họ tên</Text>
+          <TextInput
+            style={styles.formInput}
+            value={customerName}
+            onChangeText={setCustomerName}
+            placeholder="Nhập họ tên"
+          />
+        </View>
+        <View style={styles.formGroup}>
+          <Text style={styles.formLabel}>Số điện thoại</Text>
+          <TextInput
+            style={styles.formInput}
+            value={customerPhone}
+            onChangeText={setCustomerPhone}
+            placeholder="Nhập số điện thoại"
+            keyboardType="phone-pad"
+          />
+        </View>
+        <View style={styles.formGroup}>
+          <Text style={styles.formLabel}>Địa chỉ</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TextInput
+              style={[styles.formInput, { flex: 1 }]}
+              value={customerAddress}
+              onChangeText={setCustomerAddress}
+              placeholder="Nhập địa chỉ hoặc chọn trên bản đồ"
+            />
+            <TouchableOpacity
+              style={styles.mapButton}
+              onPress={handlePickLocation}
+              disabled={loadingLocation}
+            >
+              <Text style={styles.mapButtonText}>{loadingLocation ? '...' : '📍'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+
+      {/* Danh sách sản phẩm trong giỏ */}
       <FlatList
         data={items}
         keyExtractor={item => item.id.toString()}
@@ -282,6 +358,53 @@ const styles = StyleSheet.create({
   quantityButtonText: {
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  customerForm: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginTop: 10,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  formTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  formGroup: {
+    marginBottom: 16,
+  },
+  formLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  formInput: {
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    backgroundColor: '#fafbfc',
+    fontSize: 16,
+  },
+  mapButton: {
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    marginLeft: 8,
+    backgroundColor: '#e6f0ff',
+  },
+  mapButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#007bff',
   },
 });
 

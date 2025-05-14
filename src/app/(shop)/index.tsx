@@ -5,19 +5,24 @@ import {
   View,
   Text,
 } from 'react-native';
-import React from 'react';
+import React, { useCallback } from 'react';
 
 import { PRODUCTS } from '../../../assets/products';
 import { ProductListItem } from '../../components/product-list-item';
 import { ListHeader } from '../../components/list-header';
 import { getProductsAndCategories } from '../../api/api';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 const Home = () => {
-  const { data, error, isLoading } = useQuery({
+  const queryClient = useQueryClient();
+  const { data, error, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['productsAndCategories'],
     queryFn: getProductsAndCategories,
   });
+
+  const onRefresh = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['productsAndCategories'] });
+  }, [queryClient]);
 
   if (isLoading) return <ActivityIndicator />;
 
@@ -35,6 +40,8 @@ const Home = () => {
         contentContainerStyle={styles.flatListContent}
         columnWrapperStyle={styles.flatListColumn}
         style={{ paddingHorizontal: 10, paddingVertical: 5 }}
+        refreshing={isFetching}
+        onRefresh={onRefresh}
       />
     </View>
   );

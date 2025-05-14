@@ -8,43 +8,25 @@ import {
   TouchableOpacity,
   View,
   ScrollView,
+  Dimensions,
 } from 'react-native';
 import { useToast } from 'react-native-toast-notifications';
 import { useCartStore } from '../../store/cart-store';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PRODUCTS } from '../../../assets/products';
 import { getProduct } from '../../api/api';
-import { Tables } from '../../types/database.types';
+import { ProductWithSizes } from '../../types/database.types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Hàm chuyển text hoặc array thành mảng số (hỗ trợ cả JSON dạng '[{"size":34,"quantity":10},...]')
-function parseAvailableSizesData(sizes: any): {size: number, quantity: number}[] {
-  if (!sizes) return [];
-  if (Array.isArray(sizes)) {
-    if (sizes.length > 0 && typeof sizes[0] === 'object' && sizes[0] !== null && 'size' in sizes[0]) {
-      return sizes;
-    }
-    // Nếu là mảng số, chuyển thành object với quantity mặc định 99
-    return sizes.map((s: any) => ({ size: Number(s), quantity: 99 }));
-  }
-  try {
-    const arr = JSON.parse(sizes);
-    if (Array.isArray(arr) && arr.length > 0 && typeof arr[0] === 'object' && arr[0] !== null && 'size' in arr[0]) {
-      return arr;
-    }
-  } catch {}
-  // Nếu là chuỗi dạng {34,35,36}
-  let cleaned = String(sizes).replace(/[\{\}\[\]"]/g, '');
-  return cleaned
-    .split(',')
-    .map(s => ({ size: parseInt(s.trim(), 10), quantity: 99 }))
-    .filter(obj => !isNaN(obj.size));
-}
+const { width } = Dimensions.get('window');
+const IMAGE_SIZE = 90;
+const SIZE_BUTTON = 48;
 
 const ProductDetails = () => {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const toast = useToast();
 
-  const { data: product, error, isLoading } = getProduct(slug);
+  const { data: product, error, isLoading } = getProduct(slug) as { data: ProductWithSizes, error: any, isLoading: boolean };
 
   const { items, addItem, incrementItem, decrementItem } = useCartStore();
 
@@ -55,12 +37,28 @@ const ProductDetails = () => {
   const [quantity, setQuantity] = useState(initialQuantity);
   const [selectedSize, setSelectedSize] = useState<number | null>(null);
 
-  if (isLoading) return <ActivityIndicator />;
-  if (error) return <Text>Error: {error.message}</Text>;
+  // Lưu sản phẩm đã xem gần đây
+  useEffect(() => {
+    if (!product) return;
+    const saveRecent = async () => {
+      try {
+        const json = await AsyncStorage.getItem('recently_viewed');
+        let arr = json ? JSON.parse(json) : [];
+        arr = arr.filter((p: any) => p.id !== product.id); // remove if exists
+        arr.unshift({ id: product.id, slug: product.slug, title: product.title, heroImage: product.heroImage });
+        if (arr.length > 10) arr = arr.slice(0, 10);
+        await AsyncStorage.setItem('recently_viewed', JSON.stringify(arr));
+      } catch {}
+    };
+    saveRecent();
+  }, [product?.id]);
+
+  if (isLoading) return <ActivityIndicator style={{ flex: 1 }} size="large" color="#007bff" />;
+  if (error) return <Text style={{ color: 'red', textAlign: 'center', marginTop: 40 }}>Error: {error.message}</Text>;
   if (!product) return <Redirect href='/404' />;
 
-  // Parse mảng object size-quantity
-  const availableSizesData = parseAvailableSizesData(product.availableSizes);
+  // Lấy size từ product.sizes
+  const availableSizesData = Array.isArray(product.sizes) ? product.sizes : [];
   const selectedSizeObj = availableSizesData.find((s: any) => s.size === selectedSize);
   const maxQuantity = selectedSizeObj ? selectedSizeObj.quantity : 0;
 
@@ -108,7 +106,7 @@ const ProductDetails = () => {
     });
   };
 
-  const totalPrice = (product.price * quantity).toFixed(2);
+  const totalPrice = product.price * quantity;
 
   return (
     <ScrollView style={styles.container}>
@@ -116,15 +114,25 @@ const ProductDetails = () => {
 
       <Image source={{uri: product.heroImage}} style={styles.heroImage} />
 
-      <View style={{ padding: 16, flex: 1 }}>
+      <View style={styles.contentBox}>
         <Text style={styles.title}>{product.title}</Text>
         <Text style={styles.description}>{product.description}</Text>
 
-        <View style={styles.priceContainer}>
-          <Text style={styles.price}>Giá: ${product.price.toFixed(2)}</Text>
-          <Text style={styles.price}>Tổng: ${totalPrice}</Text>
-        </View>
+        {/* Hình ảnh nhỏ */}
+        {Array.isArray(product.imagesUrl) && product.imagesUrl.length > 0 && (
+          <FlatList
+            data={product.imagesUrl}
+            keyExtractor={(item, index) => index.toString()}
+            renderItem={({ item }) => (
+              <Image source={{uri: item}} style={styles.imageThumb} />
+            )}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.imagesContainer}
+          />
+        )}
 
+        {/* Bảng chọn size */}
         <View style={styles.sizeContainer}>
           <Text style={styles.sizeTitle}>Chọn size:</Text>
           <View style={styles.sizeList}>
@@ -135,16 +143,21 @@ const ProductDetails = () => {
                   style={[
                     styles.sizeButton,
                     selectedSize === s.size && styles.selectedSizeButton,
+                    s.quantity === 0 && styles.disabledSizeButton,
                   ]}
                   onPress={() => {
-                    setSelectedSize(s.size);
-                    setQuantity(1); // Reset về 1 khi đổi size
+                    if (s.quantity > 0) {
+                      setSelectedSize(s.size);
+                      setQuantity(1);
+                    }
                   }}
+                  disabled={s.quantity === 0}
                 >
                   <Text
                     style={[
                       styles.sizeText,
                       selectedSize === s.size && styles.selectedSizeText,
+                      s.quantity === 0 && styles.disabledSizeText,
                     ]}
                   >
                     {s.size}
@@ -157,45 +170,39 @@ const ProductDetails = () => {
           </View>
         </View>
 
-        {Array.isArray(product.imagesUrl) && product.imagesUrl.length > 0 && (
-          <FlatList
-            data={product.imagesUrl}
-            keyExtractor={(item, index) => index.toString()}
-            renderItem={({ item }) => (
-              <Image source={{uri: item}} style={styles.image} />
-            )}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.imagesContainer}
-          />
-        )}
+        {/* Giá và tổng tiền */}
+        <View style={styles.priceRow}>
+          <View style={styles.priceBox}>
+            <Text style={styles.priceLabel}>Giá</Text>
+            <Text style={styles.priceValue}>{product.price.toLocaleString('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 })}</Text>
+          </View>
+          <View style={styles.priceBox}>
+            <Text style={styles.priceLabel}>Tổng</Text>
+            <Text style={styles.priceValue}>{totalPrice.toLocaleString('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 })}</Text>
+          </View>
+        </View>
 
-        <View style={styles.buttonContainer}>
+        {/* Nút thêm vào giỏ hàng */}
+        <View style={styles.cartRow}>
           <TouchableOpacity
-            style={styles.quantityButton}
+            style={[styles.quantityButton, quantity <= 1 && styles.disabledBtn]}
             onPress={decreaseQuantity}
             disabled={quantity <= 1}
           >
             <Text style={styles.quantityButtonText}>-</Text>
           </TouchableOpacity>
-
           <Text style={styles.quantity}>{quantity}</Text>
-
           <TouchableOpacity
-            style={styles.quantityButton}
+            style={[styles.quantityButton, quantity >= maxQuantity && styles.disabledBtn]}
             onPress={increseQuantity}
             disabled={quantity >= maxQuantity}
           >
             <Text style={styles.quantityButtonText}>+</Text>
           </TouchableOpacity>
-
           <TouchableOpacity
-            style={[
-              styles.addToCartButton,
-              { opacity: quantity === 0 ? 0.5 : 1 },
-            ]}
+            style={[styles.addToCartButton, (quantity === 0 || !selectedSize) && styles.disabledAddBtn]}
             onPress={addToCart}
-            disabled={quantity === 0}
+            disabled={quantity === 0 || !selectedSize}
           >
             <Text style={styles.addToCartText}>Thêm vào giỏ hàng</Text>
           </TouchableOpacity>
@@ -210,83 +217,138 @@ export default ProductDetails;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#f8f9fa',
   },
   heroImage: {
     width: '100%',
-    height: 250,
+    height: 270,
     resizeMode: 'cover',
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  contentBox: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    margin: 12,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
   title: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: 'bold',
-    marginVertical: 8,
+    color: '#222',
+    marginBottom: 8,
+    textAlign: 'left',
   },
   description: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 15,
+    color: '#555',
     marginBottom: 16,
-    lineHeight: 24,
+    lineHeight: 22,
+    textAlign: 'left',
   },
-  priceContainer: {
+  imagesContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 18,
+    gap: 10,
   },
-  price: {
-    fontWeight: 'bold',
-    color: '#000',
-    fontSize: 18,
+  imageThumb: {
+    width: IMAGE_SIZE,
+    height: IMAGE_SIZE,
+    borderRadius: 14,
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#eee',
+    backgroundColor: '#fafbfc',
   },
   sizeContainer: {
-    marginBottom: 16,
+    marginBottom: 18,
   },
   sizeTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: 10,
+    color: '#222',
   },
   sizeList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
   },
   sizeButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#f0f0f0',
+    width: SIZE_BUTTON,
+    height: SIZE_BUTTON,
+    borderRadius: SIZE_BUTTON / 2,
+    backgroundColor: '#f0f4fa',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#ddd',
+    borderWidth: 1.5,
+    borderColor: '#e0e0e0',
+    marginBottom: 8,
   },
   selectedSizeButton: {
     backgroundColor: '#007bff',
     borderColor: '#007bff',
+    shadowColor: '#007bff',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  disabledSizeButton: {
+    backgroundColor: '#eee',
+    borderColor: '#ddd',
+    opacity: 0.5,
   },
   sizeText: {
     fontSize: 16,
     color: '#333',
+    fontWeight: 'bold',
   },
   selectedSizeText: {
     color: '#fff',
   },
-  imagesContainer: {
-    marginBottom: 16,
+  disabledSizeText: {
+    color: '#aaa',
   },
-  image: {
-    width: 100,
-    height: 100,
-    marginRight: 8,
-    borderRadius: 8,
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 18,
+    marginTop: 6,
   },
-  buttonContainer: {
+  priceBox: {
+    flex: 1,
+    alignItems: 'center',
+    padding: 10,
+    backgroundColor: '#f6f8fa',
+    borderRadius: 12,
+    marginHorizontal: 4,
+  },
+  priceLabel: {
+    fontSize: 14,
+    color: '#888',
+    marginBottom: 2,
+  },
+  priceValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#007bff',
+  },
+  cartRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 16,
+    marginTop: 8,
+    gap: 8,
   },
   quantityButton: {
     width: 40,
@@ -295,29 +357,49 @@ const styles = StyleSheet.create({
     backgroundColor: '#007bff',
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 8,
+    marginHorizontal: 2,
+    shadowColor: '#007bff',
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
   },
   quantityButtonText: {
     fontSize: 24,
     color: '#fff',
+    fontWeight: 'bold',
   },
   quantity: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginHorizontal: 16,
+    marginHorizontal: 8,
+    minWidth: 24,
+    textAlign: 'center',
+    color: '#222',
   },
   addToCartButton: {
     flex: 1,
     backgroundColor: '#28a745',
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 8,
+    marginLeft: 8,
+    shadowColor: '#28a745',
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
   },
   addToCartText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  disabledBtn: {
+    opacity: 0.5,
+  },
+  disabledAddBtn: {
+    backgroundColor: '#b7e1c6',
+    opacity: 0.7,
   },
 });

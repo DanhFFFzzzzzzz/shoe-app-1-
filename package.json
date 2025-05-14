@@ -33,7 +33,8 @@
     "react-native-screens": "~4.4.0",
     "react-native-toast-notifications": "^3.4.0",
     "zod": "^3.24.3",
-    "zustand": "^5.0.3"
+    "zustand": "^5.0.3",
+    "expo-location": "~18.0.10"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
