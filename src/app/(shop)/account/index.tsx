@@ -3,7 +3,6 @@ import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image, Alert, Acti
 import { FontAwesome } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../../lib/supabase';
-import { useAuth } from '../../../providers/auth-provider';
 
 const defaultAvatar = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
 
@@ -19,42 +18,71 @@ type UserProfile = {
 };
 
 const AccountScreen = () => {
-  const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (!user || !user.id) {
-      setLoading(true);
-      setProfile(null);
-      return;
-    }
-    const fetchProfile = async () => {
-      setLoading(true);
+  const fetchProfile = async () => {
+    setLoading(true);
+    try {
+      // Luôn lấy user mới nhất từ Supabase Auth
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !user.id) {
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+
+      // Lấy thông tin chi tiết từ bảng users
       const { data, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', user.id)
         .single();
-      if (!error && data) {
-        const d: any = data;
-        setProfile({
-          id: d.id,
-          email: d.email,
-          name: d.name || '',
-          gender: d.gender || '',
-          address: d.address || '',
-          phone: d.phone || '',
-          avatar_url: d.avatar_url || '',
-        });
-      } else {
+
+      if (error) {
+        console.error('Lỗi lấy thông tin user:', error);
         Alert.alert('Lỗi', 'Không thể lấy thông tin người dùng!');
+        setProfile(null);
+      } else if (data) {
+        setProfile({
+          id: data.id,
+          email: data.email,
+          name: data.name || '',
+          gender: data.gender || '',
+          address: data.address || '',
+          phone: data.phone || '',
+          avatar_url: data.avatar_url || '',
+        });
       }
+    } catch (error) {
+      console.error('Lỗi fetch profile:', error);
+      Alert.alert('Lỗi', 'Không thể lấy thông tin người dùng!');
+      setProfile(null);
+    } finally {
       setLoading(false);
-    };
+    }
+  };
+
+  // Fetch profile khi component mount và khi user thay đổi
+  useEffect(() => {
     fetchProfile();
-  }, [user?.id]);
+  }, []);
+
+  // Thêm listener cho auth state changes
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        fetchProfile();
+      } else if (event === 'SIGNED_OUT') {
+        setProfile(null);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const handleAvatarChange = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -63,10 +91,10 @@ const AccountScreen = () => {
       aspect: [1, 1],
       quality: 1,
     });
-    if (!result.canceled) {
+    if (!result.canceled && profile?.id) {
       const file = result.assets[0];
       const fileExt = file.uri.split('.').pop();
-      const fileName = `${user.id}.${fileExt}`;
+      const fileName = `${profile.id}.${fileExt}`;
       const response = await fetch(file.uri);
       const blob = await response.blob();
       const { error: uploadError } = await supabase.storage
@@ -94,7 +122,7 @@ const AccountScreen = () => {
     const { error } = await supabase
       .from('users')
       .update(updates)
-      .eq('id', user.id);
+      .eq('id', profile.id);
     setSaving(false);
     if (!error) {
       Alert.alert('Thành công', 'Cập nhật thông tin thành công!');
@@ -103,7 +131,7 @@ const AccountScreen = () => {
     }
   };
 
-  if (loading || !profile || !user || !user.id) {
+  if (loading || !profile) {
     return <ActivityIndicator style={{ flex: 1 }} size="large" color="#0a3781" />;
   }
 

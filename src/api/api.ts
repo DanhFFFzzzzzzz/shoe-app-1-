@@ -90,16 +90,21 @@ export const getMyOrders = () => {
   return useQuery({
     queryKey: ['orders', user.id],
     queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Không tìm thấy phiên đăng nhập');
+      }
+
       const { data, error } = await supabase
         .from('order')
         .select('*')
         .order('created_at', { ascending: false })
         .eq('user', user.id);
 
-      if (error)
-        throw new Error(
-          'An error occurred while fetching orders: ' + error.message
-        );
+      if (error) {
+        console.error('Lỗi lấy danh sách đơn hàng:', error);
+        throw new Error('Không thể lấy danh sách đơn hàng: ' + error.message);
+      }
 
       return data;
     },
@@ -107,37 +112,56 @@ export const getMyOrders = () => {
 };
 
 export const createOrder = () => {
-  const {
-    user: { id },
-  } = useAuth();
-
-  const slug = generateOrderSlug();
-
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   return useMutation({
-    async mutationFn({ totalPrice }: { totalPrice: number }) {
+    async mutationFn({
+      totalPrice,
+      customer_name,
+      customer_phone,
+      customer_address,
+    }: {
+      totalPrice: number;
+      customer_name: string;
+      customer_phone: string;
+      customer_address: string;
+    }) {
+      if (!user?.id) {
+        throw new Error('Bạn cần đăng nhập để đặt hàng.');
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Không tìm thấy phiên đăng nhập');
+      }
+
+      const slug = generateOrderSlug();
+
       const { data, error } = await supabase
         .from('order')
         .insert({
           totalPrice,
           slug,
-          user: id,
+          user: user.id,
           status: 'Pending',
+          customer_name,
+          customer_phone,
+          customer_address,
         })
         .select('*')
         .single();
 
-      if (error)
-        throw new Error(
-          'An error occurred while creating order: ' + error.message
-        );
+      if (error) {
+        console.error('Lỗi tạo đơn hàng:', error);
+        throw new Error('Không thể tạo đơn hàng: ' + error.message);
+      }
 
       return data;
     },
 
     async onSuccess() {
-      await queryClient.invalidateQueries({ queryKey: ['order'] });
+      await queryClient.invalidateQueries({ queryKey: ['orders'] });
     },
   });
 };
@@ -182,31 +206,64 @@ export const createOrderItem = () => {
 };
 
 export const getMyOrder = (slug: string) => {
-  const {
-    user: { id },
-  } = useAuth();
+  const { user } = useAuth();
 
   return useQuery({
     queryKey: ['orders', slug],
     queryFn: async () => {
+      if (!user?.id) {
+        throw new Error('Bạn cần đăng nhập để xem đơn hàng.');
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Không tìm thấy phiên đăng nhập');
+      }
+
       const { data, error } = await supabase
         .from('order')
         .select('*, order_items:order_item(*, products:product(*))')
         .eq('slug', slug)
-        .eq('user', id)
+        .eq('user', user.id)
         .single();
 
       if (error) {
-        throw new Error(
-          'An error occurred while fetching data: ' + error.message
-        );
+        console.error('Lỗi lấy thông tin đơn hàng:', error);
+        throw new Error('Không thể lấy thông tin đơn hàng: ' + error.message);
       }
 
       if (!data) {
-        throw new Error('No data found');
+        throw new Error('Không tìm thấy đơn hàng');
       }
 
       return data;
     },
   });
+};
+
+export const updateProductQuantity = async (productId: number, size: number, quantity: number) => {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  
+  if (!token) {
+    throw new Error('Không tìm thấy phiên đăng nhập');
+  }
+
+  const response = await fetch(`http://192.168.1.4:3000/api/products/${productId}/update-quantity`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      size,
+      quantity
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error('Không thể cập nhật số lượng sản phẩm');
+  }
+
+  return response.json();
 };

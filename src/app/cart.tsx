@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,11 @@ import { StatusBar } from 'expo-status-bar';
 import { createOrder, createOrderItem } from '../api/api';
 import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
-//import { openStripeCheckout, setupStripePaymentSheet } from '../lib/stripe';
+import NetInfo from '@react-native-community/netinfo';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
+import { supabase } from '../lib/supabase';
+import { productApi } from '../api/product';
 
 type CartItemType = {
   id: number;
@@ -45,7 +49,7 @@ const CartItem = ({
       <Image source={{ uri: item.heroImage }} style={styles.itemImage} />
       <View style={styles.itemDetails}>
         <Text style={styles.itemTitle}>{item.title}</Text>
-        <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+        <Text style={styles.itemPrice}>{item.price.toLocaleString('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 })}</Text>
         <Text style={styles.itemSize}>Size: {item.size}</Text>
         <View style={styles.quantityContainer}>
           <TouchableOpacity
@@ -87,23 +91,6 @@ export default function Cart() {
   const { mutateAsync: createSupabaseOrder } = createOrder();
   const { mutateAsync: createSupabaseOrderItem } = createOrderItem();
 
-  // Lắng nghe callback từ PayPal (deep link)
-  useEffect(() => {
-    const handleDeepLink = (event: { url: string }) => {
-      const url = event.url;
-      if (url.startsWith('myshoesapp://paypal-success')) {
-        Alert.alert('Thanh toán thành công qua PayPal!');
-        resetCart();
-      } else if (url.startsWith('myshoesapp://paypal-cancel')) {
-        Alert.alert('Bạn đã hủy thanh toán PayPal.');
-      }
-    };
-    const subscription = Linking.addEventListener('url', handleDeepLink);
-    return () => {
-      subscription.remove();
-    };
-  }, []);
-
   // Thông tin khách hàng
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -140,9 +127,18 @@ export default function Cart() {
       Alert.alert('Thông báo', 'Giỏ hàng của bạn đang trống!');
       return;
     }
+    if (!customerName || !customerPhone || !customerAddress) {
+      Alert.alert('Yêu cầu thông tin', 'Vui lòng nhập đầy đủ thông tin nhận hàng.');
+      return;
+    }
     const totalPrice = parseFloat(getTotalPrice().toFixed(2));
     try {
-      const order = await createSupabaseOrder({ totalPrice });
+      const order = await createSupabaseOrder({
+        totalPrice,
+        customer_name: customerName,
+        customer_phone: customerPhone,
+        customer_address: customerAddress,
+      });
       if (!order || !order.id) {
         throw new Error('Không thể tạo đơn hàng. Vui lòng thử lại!');
       }
@@ -151,27 +147,212 @@ export default function Cart() {
           orderId: order.id,
           productId: item.id,
           quantity: item.quantity,
+          size: item.size,
         }))
       );
-      alert('Order created successfully');
+
+      // Gọi API cập nhật trạng thái đơn hàng là đã thanh toán
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || '';
+      if (!token) throw new Error('Không tìm thấy phiên đăng nhập');
+      // Giả sử backend có endpoint xác nhận thanh toán
+      const response = await fetch(`http://192.168.1.4:3000/api/orders/${order.id}/confirm`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error('Không thể xác nhận thanh toán');
+
+      Alert.alert('Thanh toán thành công!', 'Cảm ơn bạn đã mua hàng.');
       resetCart();
+      return order.id;
     } catch (error) {
-      let message = (error instanceof Error ? error.message : String(error)) || 'Failed to process your order. Please try again.';
+      let message = (error instanceof Error ? error.message : String(error)) || 'Lỗi xử lý đơn hàng. Vui lòng thử lại.';
       if (message.includes('Function not implemented')) {
         message = 'Lỗi hệ thống: Chức năng trừ số lượng sản phẩm chưa được cấu hình trên máy chủ. Vui lòng liên hệ quản trị viên hoặc thử lại sau!';
       }
-      Alert.alert('Error', message);
+      Alert.alert('Lỗi', message);
+      return null;
     }
   };
 
-  // Thêm hàm thanh toán PayPal với return/cancel URL
-  const handlePayPal = async () => {
-    const total = getTotalPrice();
-    const returnUrl = encodeURIComponent('myshoesapp://paypal-success');
-    const cancelUrl = encodeURIComponent('myshoesapp://paypal-cancel');
-    // Thay business email bằng email PayPal sandbox của bạn
-    const paypalUrl = `https://www.sandbox.paypal.com/cgi-bin/webscr?cmd=_xclick&business=sb-xxxxxxx@business.example.com&item_name=Order&amount=${total}&currency_code=USD&return=${returnUrl}&cancel_return=${cancelUrl}`;
-    Linking.openURL(paypalUrl);
+  // Thêm hàm kiểm tra và lấy token
+  const getValidToken = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      return session?.access_token || '';
+    } catch (error) {
+      console.error('Lỗi lấy token:', error);
+      return '';
+    }
+  };
+
+  // Thêm lại useEffect lắng nghe callback từ VNPay
+  useEffect(() => {
+    const handleDeepLink = async (event: { url: string }) => {
+      const url = event.url;
+      if (url.includes('vnpay-return')) { 
+        try {
+          const params = new URLSearchParams(url.split('?')[1] || '');
+          const responseCode = params.get('vnp_ResponseCode');
+          const txnRef = params.get('vnp_TxnRef');
+          const pendingOrderId = await AsyncStorage.getItem('pendingOrderId');
+
+          if (!pendingOrderId) {
+            throw new Error('Không tìm thấy thông tin đơn hàng');
+          }
+
+          const { data: { session } } = await supabase.auth.getSession();
+          const token = session?.access_token || '';
+          if (!token) {
+            throw new Error('Không tìm thấy phiên đăng nhập');
+          }
+
+          if (responseCode === '00') {
+            // Cập nhật trạng thái đơn hàng thành công
+            const response = await fetch(`http://192.168.1.4:3000/api/orders/${pendingOrderId}/confirm`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+
+            if (!response.ok) {
+              throw new Error('Không thể cập nhật trạng thái đơn hàng');
+            }
+
+            Alert.alert('Thanh toán VNPay thành công!', `Mã giao dịch: ${txnRef}`);
+            resetCart();
+          } else {
+            // Xóa đơn hàng tạm nếu thanh toán thất bại
+            await fetch(`http://192.168.1.4:3000/api/orders/${pendingOrderId}`, {
+              method: 'DELETE',
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+            Alert.alert('Thanh toán VNPay thất bại', `Mã lỗi: ${responseCode}. Vui lòng thử lại.`);
+          }
+        } catch (error) {
+          console.error('Lỗi xử lý callback VNPay:', error);
+          Alert.alert('Lỗi', 'Không thể xử lý kết quả thanh toán. Vui lòng liên hệ hỗ trợ.');
+        } finally {
+          // Xóa pendingOrderId trong mọi trường hợp
+          await AsyncStorage.removeItem('pendingOrderId');
+        }
+      }
+    };
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+    return () => {
+      subscription.remove();
+    };
+  }, [resetCart]);
+
+  // Thêm lại hàm handleVNPay
+  const handleVNPay = useCallback(async () => {
+    if (!customerName || !customerPhone || !customerAddress) {
+      Alert.alert('Yêu cầu thông tin', 'Vui lòng nhập đầy đủ thông tin nhận hàng trước khi thanh toán.');
+      return;
+    }
+    if (!items || items.length === 0) {
+      Alert.alert('Thông báo', 'Giỏ hàng của bạn đang trống!');
+      return;
+    }
+
+    try {
+      // 1. Tạo đơn hàng trước
+      const orderId = await handleCheckout();
+      if (!orderId) {
+        throw new Error('Không thể tạo đơn hàng');
+      }
+
+      // 2. Lưu orderId để xử lý callback - chuyển đổi thành string
+      await AsyncStorage.setItem('pendingOrderId', orderId.toString());
+
+      // 3. Lấy token mới nhất
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || '';
+      if (!token) {
+        throw new Error('Không tìm thấy phiên đăng nhập');
+      }
+
+      const totalAmount = getTotalPrice();
+      // 4. Gọi API backend để lấy URL thanh toán VNPay
+      const response = await fetch('http://192.168.1.4:3000/api/vnpay/create_payment_url', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          amount: totalAmount,
+          orderId: orderId.toString(),
+          orderDescription: `Thanh toan don hang ${orderId}`,
+        }),
+      });
+
+      const contentType = response.headers.get('content-type');
+      let data;
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        // Xóa đơn hàng tạm nếu có lỗi
+        try {
+          await fetch(`http://192.168.1.4:3000/api/orders/${orderId}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+        } catch (deleteError) {
+          console.error('Lỗi xóa đơn hàng tạm:', deleteError);
+        }
+        Alert.alert('Lỗi', 'Không thể kết nối với cổng thanh toán. Vui lòng thử lại sau hoặc liên hệ hỗ trợ.');
+        return;
+      }
+
+      if (data && data.paymentUrl) {
+        let paymentUrl = data.paymentUrl;
+        // Đảm bảo luôn dùng sandbox.vnpayment.vn
+        try {
+          const urlObj = new URL(paymentUrl);
+          if (urlObj.hostname !== 'sandbox.vnpayment.vn') {
+            urlObj.hostname = 'sandbox.vnpayment.vn';
+            paymentUrl = urlObj.toString();
+          }
+        } catch (e) {
+          // Nếu lỗi khi parse URL, vẫn dùng paymentUrl gốc
+        }
+        const canOpen = await Linking.canOpenURL(paymentUrl);
+        if (canOpen) {
+          await Linking.openURL(paymentUrl);
+        } else {
+          throw new Error('Không thể mở URL thanh toán');
+        }
+      } else {
+        throw new Error('Không nhận được URL thanh toán từ VNPay');
+      }
+    } catch (error) {
+      // Xóa pendingOrderId nếu có lỗi
+      try {
+        await AsyncStorage.removeItem('pendingOrderId');
+      } catch (e) {
+        console.error('Lỗi xóa pendingOrderId:', e);
+      }
+      Alert.alert('Lỗi', 'Không thể khởi tạo thanh toán VNPay. Vui lòng thử lại sau hoặc liên hệ hỗ trợ.');
+    }
+  }, [customerName, customerPhone, customerAddress, items, getTotalPrice, handleCheckout]);
+
+  // Hàm xóa sản phẩm khỏi giỏ hàng và trả lại số lượng tồn kho
+  const handleRemoveFromCart = async (item: CartItemType) => {
+    try {
+      await productApi.incrementProductQuantity(item.id, item.size, item.quantity);
+      removeItem(item.id);
+    } catch (error) {
+      Alert.alert('Lỗi', 'Không thể trả lại số lượng sản phẩm. Vui lòng thử lại!');
+    }
   };
 
   if (!items || items.length === 0) {
@@ -238,7 +419,7 @@ export default function Cart() {
         renderItem={({ item }) => (
           <CartItem
             item={item}
-            onRemove={removeItem}
+            onRemove={() => handleRemoveFromCart(item)}
             onIncrement={incrementItem}
             onDecrement={decrementItem}
           />
@@ -247,18 +428,20 @@ export default function Cart() {
       />
 
       <View style={styles.footer}>
-        <Text style={styles.totalText}>Tổng tiền: ${getTotalPrice()}</Text>
+        <Text style={styles.totalText}>Tổng tiền: {getTotalPrice().toLocaleString('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 })}</Text>
+        
+        {/* Nút thanh toán thông thường */}
         <TouchableOpacity
           onPress={handleCheckout}
-          style={styles.checkoutButton}
+          style={[styles.checkoutButton, styles.normalButton]}
         >
           <Text style={styles.checkoutButtonText}>Thanh toán</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={handlePayPal}
-          style={[styles.checkoutButton, { backgroundColor: '#ffc439', marginTop: 8 }]}
+          onPress={handleVNPay}
+          style={[styles.checkoutButton, styles.vnpayButton]}
         >
-          <Text style={[styles.checkoutButtonText, { color: '#222' }]}>Thanh toán qua PayPal</Text>
+          <Text style={[styles.checkoutButtonText, styles.vnpayButtonText]}>Thanh toán qua VNPay</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -330,12 +513,23 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 16,
+    color: '#333',
   },
   checkoutButton: {
-    backgroundColor: '#28a745',
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 32,
-    borderRadius: 8,
+    borderRadius: 10,
+    width: '90%',
+    alignItems: 'center',
+    marginBottom: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  normalButton: {
+    backgroundColor: '#28a745',
   },
   checkoutButtonText: {
     color: '#fff',
@@ -406,12 +600,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#007bff',
   },
+  vnpayButton: {
+    backgroundColor: '#005baa',
+  },
+  vnpayButtonText: {
+    color: '#fff',
+  },
 });
-
-function setupStripePaymentSheet(arg0: number) {
-  throw new Error('Function not implemented.');
-}
-function openStripeCheckout() {
-  throw new Error('Function not implemented.');
-}
 

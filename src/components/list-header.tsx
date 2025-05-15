@@ -28,19 +28,21 @@ export const ListHeader = ({
   categories: Tables<'category'>[];
 }) => {
   const { getItemCount } = useCartStore();
-  const { user } = useAuth();
-  const [profile, setProfile] = useState<{ name: string; avatar_url: string } | null>(null);
+  const [profile, setProfile] = useState<{ id?: string; name: string; avatar_url: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [recentProducts, setRecentProducts] = useState<any[]>([]);
 
   useEffect(() => {
-    if (!user || !user.id) {
-      setProfile({ name: 'No Name', avatar_url: defaultAvatar });
-      setLoading(false);
-      return;
-    }
     const fetchProfile = async () => {
       setLoading(true);
+      // Lấy user mới nhất từ Supabase Auth
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !user.id) {
+        setProfile({ name: 'No Name', avatar_url: defaultAvatar });
+        setLoading(false);
+        setRecentProducts([]);
+        return;
+      }
       const { data, error } = await supabase
         .from('users')
         .select('name, avatar_url')
@@ -48,6 +50,7 @@ export const ListHeader = ({
         .single();
       if (!error && data) {
         setProfile({
+          id: user.id,
           name: data.name || 'No Name',
           avatar_url: data.avatar_url || defaultAvatar,
         });
@@ -55,20 +58,23 @@ export const ListHeader = ({
         setProfile({ name: 'No Name', avatar_url: defaultAvatar });
       }
       setLoading(false);
+
+      // Lấy sản phẩm đã xem gần đây theo user
+      try {
+        const json = await AsyncStorage.getItem(`recently_viewed_${user.id}`);
+        if (json) setRecentProducts(JSON.parse(json));
+        else setRecentProducts([]);
+      } catch {
+        setRecentProducts([]);
+      }
     };
     fetchProfile();
-
-    // Lấy sản phẩm đã xem gần đây từ AsyncStorage
-    const fetchRecent = async () => {
-      try {
-        const json = await AsyncStorage.getItem('recently_viewed');
-        if (json) setRecentProducts(JSON.parse(json));
-      } catch {}
-    };
-    fetchRecent();
-  }, [user?.id]);
+  }, []);
 
   const handleSignOut = async () => {
+    if (profile?.id) {
+      await AsyncStorage.removeItem(`recently_viewed_${profile.id}`);
+    }
     await supabase.auth.signOut();
   };
 
