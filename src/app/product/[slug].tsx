@@ -207,13 +207,10 @@ const ProductDetails = () => {
     <ScrollView style={styles.container}>
       <Stack.Screen options={{ title: product.title }} />
 
-      <Image source={{uri: product.heroImage}} style={styles.heroImage} />
-
-      <View style={styles.contentBox}>
-        <Text style={styles.title}>{product.title}</Text>
-        <Text style={styles.description}>{product.description}</Text>
-
-        {/* Hình ảnh nhỏ */}
+      {/* Ảnh sản phẩm lớn */}
+      <View style={styles.heroBox}>
+        <Image source={{uri: product.heroImage}} style={styles.heroImage} />
+        {/* FlatList ảnh phụ */}
         {Array.isArray(product.imagesUrl) && product.imagesUrl.length > 0 && (
           <FlatList
             data={product.imagesUrl}
@@ -224,8 +221,14 @@ const ProductDetails = () => {
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.imagesContainer}
+            style={{ marginTop: 8 }}
           />
         )}
+      </View>
+
+      <View style={styles.contentBox}>
+        <Text style={styles.title}>{product.title}</Text>
+        <Text style={styles.description}>{product.description}</Text>
 
         {/* Bảng chọn size */}
         <SizeSelector
@@ -273,8 +276,10 @@ const ProductDetails = () => {
             disabled={!selectedSize || getAvailableQuantity(selectedSize) <= 0}
           />
         </View>
+      </View>
 
-        {/* Sản phẩm gợi ý */}
+      {/* Sản phẩm gợi ý */}
+      <View style={styles.recommendBox}>
         <ProductRecommendations currentProductId={product.id} />
       </View>
     </ScrollView>
@@ -286,7 +291,19 @@ export default ProductDetails;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#f5f7fa',
+  },
+  heroBox: {
+    backgroundColor: '#fff',
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 8,
+    elevation: 3,
+    paddingBottom: 8,
   },
   heroImage: {
     width: '100%',
@@ -294,12 +311,21 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
+  },
+  imagesContainer: {
+    flexDirection: 'row',
     marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
+    gap: 10,
+    paddingHorizontal: 8,
+  },
+  imageThumb: {
+    width: 70,
+    height: 70,
+    borderRadius: 12,
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#eee',
+    backgroundColor: '#fafbfc',
   },
   contentBox: {
     backgroundColor: '#fff',
@@ -325,20 +351,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     lineHeight: 22,
     textAlign: 'left',
-  },
-  imagesContainer: {
-    flexDirection: 'row',
-    marginBottom: 18,
-    gap: 10,
-  },
-  imageThumb: {
-    width: IMAGE_SIZE,
-    height: IMAGE_SIZE,
-    borderRadius: 14,
-    marginRight: 10,
-    borderWidth: 1,
-    borderColor: '#eee',
-    backgroundColor: '#fafbfc',
   },
   priceRow: {
     flexDirection: 'row',
@@ -369,5 +381,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
     gap: 8,
+  },
+  recommendBox: {
+    marginHorizontal: 8,
+    marginBottom: 18,
+    marginTop: 8,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    paddingVertical: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 1,
   },
 });

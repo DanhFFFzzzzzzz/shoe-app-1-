@@ -5,12 +5,8 @@ import React from "react";
 import { FontAwesome } from "@expo/vector-icons";
 import { useAuth } from "../../providers/auth-provider";
 
-
-function TabBarIcon(props: { 
-    name: React.ComponentProps<typeof FontAwesome> ['name'];
-    color: string;
-}) {
-    return <FontAwesome  size={24} {... props} style ={{color : '#1BC464'}} />;
+function TabBarIcon({ name, color, focused }: { name: React.ComponentProps<typeof FontAwesome>['name'], color: string, focused: boolean }) {
+    return <FontAwesome size={24} name={name} color={color} style={{ opacity: focused ? 1 : 0.7 }} />;
 }
 
 const TabsLayout = () => {
@@ -34,42 +30,42 @@ const TabsLayout = () => {
                 headerShown: false,
             }}
             >
-                        <Tabs.Screen 
-                            name='index' 
-                            options={{ 
-                                title: 'Shop',
-                                tabBarIcon: (props: React.ComponentProps<typeof FontAwesome>) => {
-                                    return <TabBarIcon {...props} name='shopping-cart' color="#1BC464" />
-                                } 
-                            }} 
-                        />
                 <Tabs.Screen 
-                name="orders" 
-                options={{
-                    title: 'Orders',
-                    tabBarIcon: (props: React.ComponentProps<typeof FontAwesome>) => {
-                        return <TabBarIcon {...props} name='book' color="#1BC464" />
-                    }
-                  }} 
-            />
-            <Tabs.Screen
-              name="search/index"
-              options={{
-                title: 'Search',
-                tabBarIcon: (props: React.ComponentProps<typeof FontAwesome>) => {
-                  return <TabBarIcon {...props} name='search' color="#1BC464" />
-                }
-              }}
-            />
-            <Tabs.Screen
-              name="account/index"
-              options={{
-                title: 'Account',
-                tabBarIcon: (props: React.ComponentProps<typeof FontAwesome>) => {
-                  return <TabBarIcon {...props} name='user' color="#1BC464" />
-                }
-              }}
-            />
+                    name='index' 
+                    options={{ 
+                        title: 'Shop',
+                        tabBarIcon: ({ color, focused }) => (
+                            <TabBarIcon name='shopping-cart' color={color} focused={focused} />
+                        )
+                    }} 
+                />
+                <Tabs.Screen 
+                    name="orders" 
+                    options={{
+                        title: 'Orders',
+                        tabBarIcon: ({ color, focused }) => (
+                            <TabBarIcon name='book' color={color} focused={focused} />
+                        )
+                    }} 
+                />
+                <Tabs.Screen
+                    name="search/index"
+                    options={{
+                        title: 'Search',
+                        tabBarIcon: ({ color, focused }) => (
+                            <TabBarIcon name='search' color={color} focused={focused} />
+                        )
+                    }}
+                />
+                <Tabs.Screen
+                    name="account/index"
+                    options={{
+                        title: 'Account',
+                        tabBarIcon: ({ color, focused }) => (
+                            <TabBarIcon name='user' color={color} focused={focused} />
+                        )
+                    }}
+                />
             </Tabs>
         </SafeAreaView>
     );
