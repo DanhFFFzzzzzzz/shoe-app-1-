@@ -5,6 +5,7 @@ import { getProductsAndCategories } from '../../../api/api';
 import { useQuery } from '@tanstack/react-query';
 import { ProductListItem } from '../../../components/product-list-item';
 import { SearchBar } from '../../../components/search-bar';
+import { ProductRecommendationsByKeyword } from '../../../components/product/ProductRecommendationsByKeyword';
 
 const SearchResult = () => {
   const { q } = useLocalSearchParams();
@@ -26,6 +27,7 @@ const SearchResult = () => {
     <View style={{ flex: 1 }}>
       <SearchBar />
       {q ? <Text style={styles.title}>Kết quả cho: "{q}"</Text> : null}
+      {q ? <ProductRecommendationsByKeyword keyword={q.toString()} /> : null}
       <FlatList
         data={filteredProducts}
         renderItem={({ item }) => <ProductListItem product={item} />}

@@ -19,6 +19,7 @@ import { SizeSelector } from '../../components/product/SizeSelector';
 import { QuantitySelector } from '../../components/product/QuantitySelector';
 import { AddToCartButton } from '../../components/product/AddToCartButton';
 import { supabase } from '../../lib/supabase';
+import { ProductRecommendations } from '../../components/product/ProductRecommendations';
 
 const { width } = Dimensions.get('window');
 const IMAGE_SIZE = 90;
@@ -272,6 +273,9 @@ const ProductDetails = () => {
             disabled={!selectedSize || getAvailableQuantity(selectedSize) <= 0}
           />
         </View>
+
+        {/* Sản phẩm gợi ý */}
+        <ProductRecommendations currentProductId={product.id} />
       </View>
     </ScrollView>
   );

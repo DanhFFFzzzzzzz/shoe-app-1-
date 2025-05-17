@@ -53,5 +53,27 @@ export const productApi = {
       p_quantity: quantity
     });
     if (error) throw error;
+  },
+
+  // Lấy sản phẩm đề xuất
+  getProductRecommendations: async (productId: number) => {
+    try {
+      const response = await fetch(`http://192.168.1.4:5555/api?id=${productId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch recommendations');
+      }
+      const data = await response.json();
+      return data['san pham goi y'];
+    } catch (error) {
+      console.error('Error fetching recommendations:', error);
+      return [];
+    }
+  },
+
+  // Lấy tất cả sản phẩm
+  getAllProducts: async () => {
+    const { data, error } = await supabase.from('product').select('*');
+    if (error) throw error;
+    return data;
   }
 }; 
