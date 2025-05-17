@@ -7,6 +7,7 @@ import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { Link, router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../lib/supabase';
+import { useCartStore } from '../../store/cart-store';
 
 const { width } = Dimensions.get('window');
 const CARD_MARGIN = 10;
@@ -26,6 +27,7 @@ const Home = () => {
 
   const [recentProducts, setRecentProducts] = useState<any[]>([]);
   const [currentBanner, setCurrentBanner] = useState(0);
+  const { getItemCount } = useCartStore();
 
   useEffect(() => {
     // Lấy sản phẩm đã xem gần đây từ AsyncStorage
@@ -101,7 +103,25 @@ const Home = () => {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Trang chủ</Text>
         <TouchableOpacity onPress={() => router.push('/cart')} style={styles.headerIconBtn}>
-          <MaterialIcons name="shopping-cart" size={26} color="#1976d2" />
+          <View>
+            <MaterialIcons name="shopping-cart" size={26} color="#1976d2" />
+            {getItemCount() > 0 && (
+              <View style={{
+                position: 'absolute',
+                top: -6,
+                right: -6,
+                backgroundColor: '#1BC464',
+                borderRadius: 10,
+                width: 20,
+                height: 20,
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: 1,
+              }}>
+                <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>{getItemCount()}</Text>
+              </View>
+            )}
+          </View>
         </TouchableOpacity>
       </View>
       {/* Nội dung có thể kéo */}
