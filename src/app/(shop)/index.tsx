@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, FlatList, StyleSheet, Text, ActivityIndicator, Image, Dimensions, Pressable, ScrollView } from 'react-native';
+import { View, FlatList, StyleSheet, Text, ActivityIndicator, Image, Dimensions, Pressable, ScrollView, TouchableOpacity, Platform, Alert } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { getProductsAndCategories } from '../../api/api';
 import { ProductListItem } from '../../components/product-list-item';
-import { MaterialIcons } from '@expo/vector-icons';
-import { Link } from 'expo-router';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { Link, router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../../lib/supabase';
 
 const { width } = Dimensions.get('window');
 const CARD_MARGIN = 10;
@@ -50,6 +51,31 @@ const Home = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Hàm đăng xuất
+  const handleSignOut = () => {
+    Alert.alert(
+      'Đăng xuất',
+      'Bạn có chắc chắn muốn đăng xuất khỏi ứng dụng?',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Đăng xuất',
+          style: 'destructive',
+          onPress: () => {
+            (async () => {
+              try {
+                await supabase.auth.signOut();
+                router.replace('/auth');
+              } catch (e) {
+                Alert.alert('Lỗi', 'Không thể đăng xuất. Vui lòng thử lại!');
+              }
+            })();
+          },
+        },
+      ]
+    );
+  };
+
   if (isLoading) return (
     <View style={styles.centered}>
       <ActivityIndicator size="large" color="#1976d2" />
@@ -67,93 +93,106 @@ const Home = () => {
   const bestSellers = products.slice(0, 5);
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: '#f5f7fa' }}>
-      {/* Banner auto-slide */}
-      <View style={{ alignItems: 'center' }}>
-        <Image
-          source={{ uri: BANNERS[currentBanner].url }}
-          style={styles.banner}
-          resizeMode="cover"
-        />
-        {/* Indicator dots */}
-        <View style={styles.dotsRow}>
-          {BANNERS.map((b, idx) => (
-            <View
-              key={b.id}
-              style={[
-                styles.dot,
-                idx === currentBanner && styles.dotActive
-              ]}
-            />
-          ))}
-        </View>
+    <View style={{ flex: 1, backgroundColor: '#f5f7fa' }}>
+      {/* Header cố định trên cùng */}
+      <View style={styles.headerBox}>
+        <TouchableOpacity onPress={handleSignOut} style={styles.headerSignOutBtn} activeOpacity={0.7}>
+          <Ionicons name="log-out-outline" size={28} color="#e53935" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Trang chủ</Text>
+        <TouchableOpacity onPress={() => router.push('/cart')} style={styles.headerIconBtn}>
+          <MaterialIcons name="shopping-cart" size={26} color="#1976d2" />
+        </TouchableOpacity>
       </View>
-
-      {/* Danh mục nổi bật */}
-      <Text style={styles.sectionTitle}>Danh mục nổi bật</Text>
-      <FlatList
-        data={categories}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        keyExtractor={item => item.id.toString()}
-        renderItem={({ item }) => (
-          <Link asChild href={`/categories/${item.slug}`}>
-            <Pressable style={styles.categoryCard}>
-              <Image source={{ uri: item.imageUrl }} style={styles.categoryImage} />
-              <Text style={styles.categoryText}>{item.name}</Text>
-            </Pressable>
-          </Link>
-        )}
-        contentContainerStyle={styles.categoryList}
-      />
-
-      {/* Sản phẩm bán chạy */}
-      <Text style={styles.sectionTitle}>Bán chạy nhất</Text>
-      <FlatList
-        data={bestSellers}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        keyExtractor={item => item.id.toString()}
-        renderItem={({ item }) => (
-          <ProductListItem product={item} cardWidth={140} />
-        )}
-        contentContainerStyle={styles.bestSellerList}
-      />
-
-      {/* Sản phẩm đã xem gần đây */}
-      {recentProducts.length > 0 && (
-        <>
-          <Text style={styles.sectionTitle}>Đã xem gần đây</Text>
-          <FlatList
-            data={recentProducts}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={item => item.id.toString()}
-            renderItem={({ item }) => (
-              <Link asChild href={`/product/${item.slug}`}>
-                <Pressable style={styles.recentCard}>
-                  <Image source={{ uri: item.heroImage }} style={styles.recentImage} />
-                  <Text style={styles.recentName} numberOfLines={1}>{item.title}</Text>
-                </Pressable>
-              </Link>
-            )}
-            contentContainerStyle={styles.recentList}
+      {/* Nội dung có thể kéo */}
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Banner auto-slide */}
+        <View style={{ alignItems: 'center' }}>
+          <Image
+            source={{ uri: BANNERS[currentBanner].url }}
+            style={styles.banner}
+            resizeMode="cover"
           />
-        </>
-      )}
-
-      {/* Tất cả sản phẩm */}
-      <Text style={styles.sectionTitle}>Tất cả sản phẩm</Text>
-      <FlatList
-        data={products}
-        renderItem={({ item }) => <ProductListItem product={item} cardWidth={CARD_WIDTH} />}
-        keyExtractor={item => item.id.toString()}
-        numColumns={2}
-        contentContainerStyle={styles.flatListContent}
-        columnWrapperStyle={styles.flatListColumn}
-        scrollEnabled={false}
-      />
-    </ScrollView>
+          {/* Indicator dots */}
+          <View style={styles.dotsRow}>
+            {BANNERS.map((b, idx) => (
+              <View
+                key={b.id}
+                style={[
+                  styles.dot,
+                  idx === currentBanner && styles.dotActive
+                ]}
+              />
+            ))}
+          </View>
+        </View>
+        {/* Danh mục nổi bật */}
+        <Text style={styles.sectionTitle}>Danh mục nổi bật</Text>
+        <FlatList
+          data={categories}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(item, index) => `${item.id}_${index}`}
+          renderItem={({ item }) => (
+            <Link asChild href={`/categories/${item.slug}`}>
+              <Pressable style={styles.categoryCard}>
+                <Image source={{ uri: item.imageUrl }} style={styles.categoryImage} />
+                <Text style={styles.categoryText}>{item.name}</Text>
+              </Pressable>
+            </Link>
+          )}
+          contentContainerStyle={styles.categoryList}
+          style={{ marginBottom: 8 }}
+        />
+        {/* Sản phẩm bán chạy */}
+        <Text style={styles.sectionTitle}>Bán chạy nhất</Text>
+        <FlatList
+          data={bestSellers}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(item, index) => `${item.id}_${index}`}
+          renderItem={({ item }) => (
+            <ProductListItem product={item} cardWidth={140} />
+          )}
+          contentContainerStyle={styles.bestSellerList}
+          style={{ marginBottom: 8 }}
+        />
+        {/* Sản phẩm đã xem gần đây */}
+        {recentProducts.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Đã xem gần đây</Text>
+            <FlatList
+              data={recentProducts}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={(item, index) => `${item.id}_${item.slug || index}`}
+              renderItem={({ item }) => (
+                <Link asChild href={`/product/${item.slug}`}>
+                  <Pressable style={styles.recentCard}>
+                    <Image source={{ uri: item.heroImage }} style={styles.recentImage} />
+                    <Text style={styles.recentName} numberOfLines={1}>{item.title}</Text>
+                  </Pressable>
+                </Link>
+              )}
+              contentContainerStyle={styles.recentList}
+              style={{ marginBottom: 8 }}
+            />
+          </>
+        )}
+        {/* Tất cả sản phẩm */}
+        <Text style={styles.sectionTitle}>Tất cả sản phẩm</Text>
+        <FlatList
+          data={products}
+          renderItem={({ item }) => <ProductListItem product={item} cardWidth={CARD_WIDTH} />}
+          keyExtractor={(item, index) => `${item.id}_${item.slug || index}`}
+          numColumns={2}
+          contentContainerStyle={styles.flatListContent}
+          columnWrapperStyle={styles.flatListColumn}
+          scrollEnabled={false}
+          style={{ marginBottom: 24 }}
+        />
+      </ScrollView>
+    </View>
   );
 };
 
@@ -284,5 +323,45 @@ const styles = StyleSheet.create({
     color: '#e53935',
     marginTop: 10,
     textAlign: 'center',
+  },
+  headerBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: Platform.OS === 'ios' ? 48 : 18,
+    paddingBottom: 12,
+    backgroundColor: '#fff',
+    zIndex: 10,
+  },
+  headerIconBtn: {
+    padding: 6,
+    marginLeft: 2,
+    marginRight: 2,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#222',
+    flex: 1,
+    textAlign: 'center',
+    marginLeft: -32, // Để căn giữa khi có 2 icon
+  },
+  scrollContent: {
+    paddingBottom: 32,
+    paddingTop: 0,
+  },
+  headerSignOutBtn: {
+    padding: 8,
+    marginLeft: 2,
+    backgroundColor: '#fff0f0',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#e53935',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#e53935',
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2,
   },
 });

@@ -9,6 +9,7 @@ import {
   FlatList,
   Image,
   TextInput,
+  ScrollView,
 } from 'react-native';
 import { useCartStore } from '../store/cart-store';
 import { StatusBar } from 'expo-status-bar';
@@ -20,6 +21,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { productApi } from '../api/product';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 
 type CartItemType = {
   id: number;
@@ -67,7 +69,6 @@ const CartItem = ({
           </TouchableOpacity>
         </View>
       </View>
-
       <TouchableOpacity
         onPress={() => onRemove(item.id)}
         style={styles.removeButton}
@@ -249,102 +250,6 @@ export default function Cart() {
     };
   }, [resetCart]);
 
-  // Thêm lại hàm handleVNPay
-  const handleVNPay = useCallback(async () => {
-    if (!customerName || !customerPhone || !customerAddress) {
-      Alert.alert('Yêu cầu thông tin', 'Vui lòng nhập đầy đủ thông tin nhận hàng trước khi thanh toán.');
-      return;
-    }
-    if (!items || items.length === 0) {
-      Alert.alert('Thông báo', 'Giỏ hàng của bạn đang trống!');
-      return;
-    }
-
-    try {
-      // 1. Tạo đơn hàng trước
-      const orderId = await handleCheckout();
-      if (!orderId) {
-        throw new Error('Không thể tạo đơn hàng');
-      }
-
-      // 2. Lưu orderId để xử lý callback - chuyển đổi thành string
-      await AsyncStorage.setItem('pendingOrderId', orderId.toString());
-
-      // 3. Lấy token mới nhất
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token || '';
-      if (!token) {
-        throw new Error('Không tìm thấy phiên đăng nhập');
-      }
-
-      const totalAmount = getTotalPrice();
-      // 4. Gọi API backend để lấy URL thanh toán VNPay
-      const response = await fetch('http://192.168.1.4:3000/api/vnpay/create_payment_url', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          amount: totalAmount,
-          orderId: orderId.toString(),
-          orderDescription: `Thanh toan don hang ${orderId}`,
-        }),
-      });
-
-      const contentType = response.headers.get('content-type');
-      let data;
-      if (contentType && contentType.includes('application/json')) {
-        data = await response.json();
-      } else {
-        const text = await response.text();
-        // Xóa đơn hàng tạm nếu có lỗi
-        try {
-          await fetch(`http://192.168.1.4:3000/api/orders/${orderId}`, {
-            method: 'DELETE',
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-        } catch (deleteError) {
-          console.error('Lỗi xóa đơn hàng tạm:', deleteError);
-        }
-        Alert.alert('Lỗi', 'Không thể kết nối với cổng thanh toán. Vui lòng thử lại sau hoặc liên hệ hỗ trợ.');
-        return;
-      }
-
-      if (data && data.paymentUrl) {
-        let paymentUrl = data.paymentUrl;
-        // Đảm bảo luôn dùng sandbox.vnpayment.vn
-        try {
-          const urlObj = new URL(paymentUrl);
-          if (urlObj.hostname !== 'sandbox.vnpayment.vn') {
-            urlObj.hostname = 'sandbox.vnpayment.vn';
-            paymentUrl = urlObj.toString();
-          }
-        } catch (e) {
-          // Nếu lỗi khi parse URL, vẫn dùng paymentUrl gốc
-        }
-        const canOpen = await Linking.canOpenURL(paymentUrl);
-        if (canOpen) {
-          await Linking.openURL(paymentUrl);
-        } else {
-          throw new Error('Không thể mở URL thanh toán');
-        }
-      } else {
-        throw new Error('Không nhận được URL thanh toán từ VNPay');
-      }
-    } catch (error) {
-      // Xóa pendingOrderId nếu có lỗi
-      try {
-        await AsyncStorage.removeItem('pendingOrderId');
-      } catch (e) {
-        console.error('Lỗi xóa pendingOrderId:', e);
-      }
-      Alert.alert('Lỗi', 'Không thể khởi tạo thanh toán VNPay. Vui lòng thử lại sau hoặc liên hệ hỗ trợ.');
-    }
-  }, [customerName, customerPhone, customerAddress, items, getTotalPrice, handleCheckout]);
-
   // Hàm xóa sản phẩm khỏi giỏ hàng và trả lại số lượng tồn kho
   const handleRemoveFromCart = async (item: CartItemType) => {
     try {
@@ -355,95 +260,129 @@ export default function Cart() {
     }
   };
 
-  if (!items || items.length === 0) {
+  // Lọc sản phẩm hợp lệ (không chứa ảnh bản đồ)
+  const validItems = items.filter(item => {
+    if (!item.heroImage) return false;
+    const lower = item.heroImage.toLowerCase();
+    // Loại bỏ các ảnh bản đồ hoặc chứa từ khóa không hợp lệ
+    return !lower.includes('austria map') && !lower.includes('map') && !lower.includes('flag') && !lower.includes('country') && !lower.includes('vienna');
+  });
+
+  useEffect(() => {
+    // Xóa triệt để các sản phẩm có ảnh bản đồ khỏi giỏ hàng khi vào trang cart
+    items.forEach(item => {
+      if (item.heroImage) {
+        const lower = item.heroImage.toLowerCase();
+        if (
+          lower.includes('austria map') ||
+          lower.includes('map') ||
+          lower.includes('flag') ||
+          lower.includes('country') ||
+          lower.includes('vienna')
+        ) {
+          removeItem(item.id);
+        }
+      }
+    });
+  }, [items, removeItem]);
+
+  if (!validItems || validItems.length === 0) {
     return (
       <View style={styles.container}>
+        <View style={styles.headerBox}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.headerIconBtn}>
+            <Ionicons name="arrow-back" size={26} color="#222" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Giỏ hàng</Text>
+          <MaterialIcons name="shopping-cart" size={26} color="#1976d2" style={styles.headerCartIcon} />
+        </View>
         <StatusBar style={Platform.OS === 'ios' ? 'light' : 'auto'} />
-        <Text style={{ textAlign: 'center', marginTop: 40, fontSize: 18 }}>
-          Giỏ hàng của bạn đang trống!
-        </Text>
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <Text style={{ textAlign: 'center', marginTop: 40, fontSize: 18 }}>
+            Giỏ hàng của bạn đang trống!
+          </Text>
+        </View>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
+      {/* <View style={styles.headerBox}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerIconBtn}>
+          <Ionicons name="arrow-back" size={26} color="#222" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Giỏ hàng</Text>
+        <MaterialIcons name="shopping-cart" size={26} color="#1976d2" style={styles.headerCartIcon} />
+      </View> */}
       <StatusBar style={Platform.OS === 'ios' ? 'light' : 'auto'} />
-
-      {/* Form nhập thông tin khách hàng */}
-      <View style={styles.customerForm}>
-        <Text style={styles.formTitle}>Thông tin nhận hàng</Text>
-        <View style={styles.formGroup}>
-          <Text style={styles.formLabel}>Họ tên</Text>
-          <TextInput
-            style={styles.formInput}
-            value={customerName}
-            onChangeText={setCustomerName}
-            placeholder="Nhập họ tên"
-          />
-        </View>
-        <View style={styles.formGroup}>
-          <Text style={styles.formLabel}>Số điện thoại</Text>
-          <TextInput
-            style={styles.formInput}
-            value={customerPhone}
-            onChangeText={setCustomerPhone}
-            placeholder="Nhập số điện thoại"
-            keyboardType="phone-pad"
-          />
-        </View>
-        <View style={styles.formGroup}>
-          <Text style={styles.formLabel}>Địa chỉ</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
+        <View style={styles.customerForm}>
+          <Text style={styles.formTitle}>Thông tin nhận hàng</Text>
+          <View style={styles.formGroup}>
+            <Text style={styles.formLabel}>Họ tên</Text>
             <TextInput
-              style={[styles.formInput, { flex: 1 }]}
-              value={customerAddress}
-              onChangeText={setCustomerAddress}
-              placeholder="Nhập địa chỉ hoặc chọn trên bản đồ"
+              style={styles.formInput}
+              value={customerName}
+              onChangeText={setCustomerName}
+              placeholder="Nhập họ tên"
             />
-            <TouchableOpacity
-              style={styles.mapButton}
-              onPress={handlePickLocation}
-              disabled={loadingLocation}
-            >
-              <Text style={styles.mapButtonText}>{loadingLocation ? '...' : '📍'}</Text>
-            </TouchableOpacity>
+          </View>
+          <View style={styles.formGroup}>
+            <Text style={styles.formLabel}>Số điện thoại</Text>
+            <TextInput
+              style={styles.formInput}
+              value={customerPhone}
+              onChangeText={setCustomerPhone}
+              placeholder="Nhập số điện thoại"
+              keyboardType="phone-pad"
+            />
+          </View>
+          <View style={styles.formGroup}>
+            <Text style={styles.formLabel}>Địa chỉ</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TextInput
+                style={[styles.formInput, { flex: 1 }]}
+                value={customerAddress}
+                onChangeText={setCustomerAddress}
+                placeholder="Nhập địa chỉ hoặc chọn trên bản đồ"
+              />
+              <TouchableOpacity
+                style={styles.mapButton}
+                onPress={handlePickLocation}
+                disabled={loadingLocation}
+              >
+                <Text style={styles.mapButtonText}>{loadingLocation ? '...' : '📍'}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      </View>
-
-      {/* Danh sách sản phẩm trong giỏ */}
-      <FlatList
-        data={items}
-        keyExtractor={item => item.id.toString()}
-        renderItem={({ item }) => (
-          <CartItem
-            item={item}
-            onRemove={() => handleRemoveFromCart(item)}
-            onIncrement={incrementItem}
-            onDecrement={decrementItem}
-          />
-        )}
-        contentContainerStyle={styles.cartList}
-      />
-
-      <View style={styles.footer}>
-        <Text style={styles.totalText}>Tổng tiền: {getTotalPrice().toLocaleString('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 })}</Text>
-        
-        {/* Nút thanh toán thông thường */}
-        <TouchableOpacity
-          onPress={handleCheckout}
-          style={[styles.checkoutButton, styles.normalButton]}
-        >
-          <Text style={styles.checkoutButtonText}>Thanh toán</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={handleVNPay}
-          style={[styles.checkoutButton, styles.vnpayButton]}
-        >
-          <Text style={[styles.checkoutButtonText, styles.vnpayButtonText]}>Thanh toán qua VNPay</Text>
-        </TouchableOpacity>
-      </View>
+        {/* Danh sách sản phẩm hợp lệ trong giỏ */}
+        <FlatList
+          data={validItems}
+          keyExtractor={item => item.id.toString()}
+          renderItem={({ item }) => (
+            <CartItem
+              item={item}
+              onRemove={() => handleRemoveFromCart(item)}
+              onIncrement={incrementItem}
+              onDecrement={decrementItem}
+            />
+          )}
+          contentContainerStyle={styles.cartList}
+          scrollEnabled={false}
+        />
+        {/* Footer */}
+        <View style={styles.footer}>
+          <Text style={styles.totalText}>Tổng tiền: {getTotalPrice().toLocaleString('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 })}</Text>
+          <TouchableOpacity
+            onPress={handleCheckout}
+            style={[styles.checkoutButton, styles.normalButton]}
+          >
+            <Text style={styles.checkoutButtonText}>Thanh toán</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -464,11 +403,6 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     backgroundColor: '#f9f9f9',
-  },
-  itemImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
   },
   itemDetails: {
     flex: 1,
@@ -600,11 +534,34 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#007bff',
   },
-  vnpayButton: {
-    backgroundColor: '#005baa',
+  headerBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: Platform.OS === 'ios' ? 48 : 18,
+    paddingBottom: 12,
+    backgroundColor: '#fff',
+    zIndex: 10,
   },
-  vnpayButtonText: {
-    color: '#fff',
+  headerIconBtn: {
+    padding: 6,
+    marginLeft: 2,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#222',
+    flex: 1,
+    textAlign: 'center',
+    marginLeft: -32, // Để căn giữa khi có 2 icon
+  },
+  headerCartIcon: {
+    marginRight: 8,
+  },
+  itemImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
   },
 });
 

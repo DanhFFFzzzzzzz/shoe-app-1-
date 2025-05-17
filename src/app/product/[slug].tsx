@@ -163,9 +163,6 @@ const ProductDetails = () => {
     }
 
     try {
-      // Cập nhật số lượng trong database
-      await productApi.updateProductQuantity(product.id, selectedSize, quantity);
-
       // Thêm vào giỏ hàng
       addItem({
         id: product.id,
@@ -192,7 +189,7 @@ const ProductDetails = () => {
         duration: 1500,
       });
     } catch (error: any) {
-      console.error('Lỗi khi cập nhật số lượng:', error);
+      console.error('Lỗi khi thêm vào giỏ hàng:', error);
       toast.show(error.message || 'Có lỗi xảy ra khi thêm vào giỏ hàng', {
         type: 'error',
         placement: 'top',
