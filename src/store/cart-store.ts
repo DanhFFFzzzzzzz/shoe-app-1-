@@ -19,7 +19,7 @@ type CartState = {
   addItem: (item: Partial<CartItemType> & Pick<CartItemType, 'id' | 'title' | 'heroImage' | 'price' | 'size'>) => void;
 
   // Xoá sản phẩm khỏi giỏ
-  removeItem: (id: number) => void;
+  removeItem: (id: number, size: number) => void;
 
   // Tăng số lượng sản phẩm
   incrementItem: (id: number) => void;
@@ -70,10 +70,10 @@ export const useCartStore = create<CartState>((set, get) => ({
     }
   },
 
-  // Xoá sản phẩm theo ID
-  removeItem: (id: number) =>
+  // Xoá sản phẩm theo ID và size
+  removeItem: (id: number, size: number) =>
     set(state => ({
-      items: state.items.filter(item => item.id !== id),
+      items: state.items.filter(item => !(item.id === id && item.size === size)),
     })),
 
   // Tăng số lượng sản phẩm (nếu chưa đạt maxQuantity)

@@ -35,7 +35,7 @@ type CartItemType = {
 
 type CartItemProps = {
   item: CartItemType;
-  onRemove: (id: number) => void;
+  onRemove: (item: CartItemType) => void;
   onIncrement: (id: number) => void;
   onDecrement: (id: number) => void;
 };
@@ -70,7 +70,7 @@ const CartItem = ({
         </View>
       </View>
       <TouchableOpacity
-        onPress={() => onRemove(item.id)}
+        onPress={() => onRemove(item)}
         style={styles.removeButton}
       >
         <Text style={styles.removeButtonText}>Xóa</Text>
@@ -158,6 +158,10 @@ export default function Cart() {
           size: item.size,
         }))
       );
+      // Trừ tồn kho thực tế sau khi tạo order item thành công
+      for (const item of items) {
+        await productApi.updateProductQuantity(item.id, item.size, item.quantity);
+      }
       router.replace({
         pathname: '/orders/success',
         params: {
@@ -257,13 +261,8 @@ export default function Cart() {
   }, [resetCart]);
 
   // Hàm xóa sản phẩm khỏi giỏ hàng và trả lại số lượng tồn kho
-  const handleRemoveFromCart = async (item: CartItemType) => {
-    try {
-      await productApi.incrementProductQuantity(item.id, item.size, item.quantity);
-      removeItem(item.id);
-    } catch (error) {
-      Alert.alert('Lỗi', 'Không thể trả lại số lượng sản phẩm. Vui lòng thử lại!');
-    }
+  const handleRemoveFromCart = (item: CartItemType) => {
+    removeItem(item.id, item.size);
   };
 
   // Lọc sản phẩm hợp lệ (không chứa ảnh bản đồ)
@@ -286,7 +285,7 @@ export default function Cart() {
           lower.includes('country') ||
           lower.includes('vienna')
         ) {
-          removeItem(item.id);
+          removeItem(item.id, item.size);
         }
       }
     });
@@ -366,11 +365,11 @@ export default function Cart() {
         {/* Danh sách sản phẩm hợp lệ trong giỏ */}
         <FlatList
           data={validItems}
-          keyExtractor={item => item.id.toString()}
+          keyExtractor={item => item.id.toString() + '-' + item.size}
           renderItem={({ item }) => (
             <CartItem
               item={item}
-              onRemove={() => handleRemoveFromCart(item)}
+              onRemove={handleRemoveFromCart}
               onIncrement={incrementItem}
               onDecrement={decrementItem}
             />
