@@ -15,6 +15,31 @@ const Orders = () => {
       </Text>
     );
 
+  // Thêm hàm chuyển đổi trạng thái (hỗ trợ nhiều biến thể)
+  const getOrderStatusVN = (status: string) => {
+    if (!status) return '';
+    const s = status.trim().toLowerCase();
+    if (['pending', 'chờ xác nhận'].includes(s)) return 'Chờ xác nhận';
+    if (['processing', 'in progress', 'đang xử lý'].includes(s)) return 'Đang xử lý';
+    if (['completed', 'delivered', 'đã giao'].includes(s)) return 'Đã giao';
+    if (['shipped', 'đã gửi hàng'].includes(s)) return 'Đã gửi hàng';
+    if (['intransit', 'đang vận chuyển'].includes(s)) return 'Đang vận chuyển';
+    if (['cancelled', 'đã hủy'].includes(s)) return 'Đã hủy';
+    return status;
+  };
+
+  // Hàm lấy style cho badge trạng thái
+  const getStatusBadgeStyle = (status: string) => {
+    const s = status.trim().toLowerCase();
+    if (s === 'pending' || s === 'chờ xác nhận') return styles.statusBadge_Pending;
+    if (s === 'processing' || s === 'in progress' || s === 'đang xử lý') return styles.statusBadge_Processing;
+    if (s === 'completed' || s === 'delivered' || s === 'đã giao') return styles.statusBadge_Completed;
+    if (s === 'shipped' || s === 'đã gửi hàng') return styles.statusBadge_Shipped;
+    if (s === 'intransit' || s === 'đang vận chuyển') return styles.statusBadge_InTransit;
+    if (s === 'cancelled' || s === 'đã hủy') return styles.statusBadge_Cancelled;
+    return styles.statusBadge;
+  };
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ title: 'Orders' }} />
@@ -32,8 +57,13 @@ const Orders = () => {
                     {format(new Date(item.created_at), 'MMM dd, yyyy')}
                   </Text>
                 </View>
-                <View style={[styles.statusBadge, styles[`statusBadge_${item.status as 'Pending' | 'Completed' | 'Shipped' | 'InTransit'}`]]}>
-                  <Text style={styles.statusText}>{item.status.toUpperCase()}</Text>
+                <View style={[styles.statusBadge, getStatusBadgeStyle(item.status)]}>
+                  <Text style={[
+                    styles.statusText,
+                    ['pending','chờ xác nhận','processing','in progress','đang xử lý'].includes(item.status.trim().toLowerCase()) ? { color: '#222' } : { color: '#fff' }
+                  ]}>
+                    {getOrderStatusVN(item.status)}
+                  </Text>
                 </View>
               </View>
             </Pressable>
@@ -57,7 +87,9 @@ const styles = StyleSheet.create({
   statusBadge: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: 4, alignSelf: 'flex-start' },
   statusText: { fontSize: 12, fontWeight: 'bold', color: '#fff' },
   statusBadge_Pending: { backgroundColor: '#ffcc00' },
+  statusBadge_Processing: { backgroundColor: '#90caf9' },
   statusBadge_Completed: { backgroundColor: '#4caf50' },
-  statusBadge_Shipped: { backgroundColor: '#2196f3' },
+  statusBadge_Shipped: { backgroundColor: '#7e57c2' },
   statusBadge_InTransit: { backgroundColor: '#ff9800' },
+  statusBadge_Cancelled: { backgroundColor: '#e53935' },
 });

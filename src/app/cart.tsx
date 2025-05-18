@@ -18,7 +18,7 @@ import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
 import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
+import { router, useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { productApi } from '../api/product';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
@@ -97,6 +97,9 @@ export default function Cart() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
   const [loadingLocation, setLoadingLocation] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const router = useRouter();
 
   // Hàm lấy vị trí hiện tại và reverse geocode
   const handlePickLocation = async () => {
@@ -124,12 +127,16 @@ export default function Cart() {
   };
 
   const handleCheckout = async () => {
+    if (isSubmitting) return; // Chặn double submit
+    setIsSubmitting(true);
     if (!items || items.length === 0) {
       Alert.alert('Thông báo', 'Giỏ hàng của bạn đang trống!');
+      setIsSubmitting(false);
       return;
     }
     if (!customerName || !customerPhone || !customerAddress) {
       Alert.alert('Yêu cầu thông tin', 'Vui lòng nhập đầy đủ thông tin nhận hàng.');
+      setIsSubmitting(false);
       return;
     }
     const totalPrice = parseFloat(getTotalPrice().toFixed(2));
@@ -151,22 +158,20 @@ export default function Cart() {
           size: item.size,
         }))
       );
-
-      // Gọi API cập nhật trạng thái đơn hàng là đã thanh toán
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token || '';
-      if (!token) throw new Error('Không tìm thấy phiên đăng nhập');
-      // Giả sử backend có endpoint xác nhận thanh toán
-      const response = await fetch(`http://192.168.1.4:3000/api/orders/${order.id}/confirm`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
+      router.replace({
+        pathname: '/orders/success',
+        params: {
+          slug: order.slug,
+          status: order.status,
+          created_at: order.created_at,
+          totalPrice: order.totalPrice,
+          customer_name: order.customer_name,
+          customer_phone: order.customer_phone,
+          customer_address: order.customer_address,
         }
       });
-      if (!response.ok) throw new Error('Không thể xác nhận thanh toán');
-
-      Alert.alert('Thanh toán thành công!', 'Cảm ơn bạn đã mua hàng.');
       resetCart();
+      setIsSubmitting(false);
       return order.id;
     } catch (error) {
       let message = (error instanceof Error ? error.message : String(error)) || 'Lỗi xử lý đơn hàng. Vui lòng thử lại.';
@@ -174,6 +179,7 @@ export default function Cart() {
         message = 'Lỗi hệ thống: Chức năng trừ số lượng sản phẩm chưa được cấu hình trên máy chủ. Vui lòng liên hệ quản trị viên hoặc thử lại sau!';
       }
       Alert.alert('Lỗi', message);
+      setIsSubmitting(false);
       return null;
     }
   };
@@ -377,9 +383,10 @@ export default function Cart() {
           <Text style={styles.totalText}>Tổng tiền: {getTotalPrice().toLocaleString('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 })}</Text>
           <TouchableOpacity
             onPress={handleCheckout}
-            style={[styles.checkoutButton, styles.normalButton]}
+            style={[styles.checkoutButton, styles.normalButton, isSubmitting && { opacity: 0.5 }]}
+            disabled={isSubmitting}
           >
-            <Text style={styles.checkoutButtonText}>Thanh toán</Text>
+            <Text style={styles.checkoutButtonText}>{isSubmitting ? 'Đang xử lý...' : 'Thanh toán'}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

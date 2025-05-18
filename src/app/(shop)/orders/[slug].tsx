@@ -18,8 +18,29 @@ const OrderDetails = () => {
       heroImage: orderItem.products.heroImage,
       price: orderItem.products.price,
       quantity: orderItem.quantity,
+      size: orderItem.size,
     };
   });
+
+  // Thêm hàm chuyển đổi trạng thái
+  const getOrderStatusVN = (status: string) => {
+    switch (status) {
+      case 'Pending':
+        return 'Chờ xác nhận';
+      case 'Completed':
+        return 'Đã giao';
+      case 'Shipped':
+        return 'Đã gửi hàng';
+      case 'InTransit':
+        return 'Đang vận chuyển';
+      case 'Processing':
+        return 'Đang xử lý';
+      case 'Cancelled':
+        return 'Đã hủy';
+      default:
+        return status;
+    }
+  };
 
   return (
     <>
@@ -33,7 +54,7 @@ const OrderDetails = () => {
             <Text style={styles.orderTitle}>{order.slug}</Text>
             <Text style={styles.details}>{order.description}</Text>
             <View style={[styles.statusBadge, styles[`statusBadge_${order.status}`]]}>
-              <Text style={styles.statusText}>{order.status}</Text>
+              <Text style={styles.statusText}>{getOrderStatusVN(order.status)}</Text>
             </View>
             <Text style={styles.date}>{format(new Date(order.created_at), 'MMM dd, yyyy')}</Text>
             {/* Thông tin khách hàng */}
@@ -52,6 +73,7 @@ const OrderDetails = () => {
               <Text style={styles.itemName}>{item.title}</Text>
               <Text style={styles.itemPrice}>Giá: {item.price.toLocaleString('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 })}</Text>
               <Text style={styles.itemQuantity}>Số lượng: {item.quantity}</Text>
+              <Text style={styles.itemSize}>Size: {item.size ?? 'N/A'}</Text>
             </View>
           </View>
         )}
@@ -164,6 +186,11 @@ const styles: { [key: string]: any } = StyleSheet.create({
     fontWeight: 'bold',
   },
   itemQuantity: {
+    fontSize: 14,
+    marginTop: 2,
+    color: '#555',
+  },
+  itemSize: {
     fontSize: 14,
     marginTop: 2,
     color: '#555',
