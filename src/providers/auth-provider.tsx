@@ -50,6 +50,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
 
         if (error) {
           console.error('error', error);
+          setUser(null);
         } else {
           setUser({
             expo_notification_token: null,
@@ -57,15 +58,42 @@ export default function AuthProvider({ children }: PropsWithChildren) {
             ...user
           });
         }
+      } else {
+        setUser(null);
       }
 
       setMounting(false);
     };
 
     fetchSession();
-    supabase.auth.onAuthStateChange((_event, session) => {
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (session) {
+        supabase
+          .from('users')
+          .select('*')
+          .eq('id', session.user.id)
+          .single()
+          .then(({ data: user, error }) => {
+            if (error) {
+              setUser(null);
+            } else {
+              setUser({
+                expo_notification_token: null,
+                stripe_customer_id: null,
+                ...user
+              });
+            }
+          });
+      } else {
+        setUser(null);
+      }
     });
+
+    return () => {
+      subscription?.unsubscribe?.();
+    };
   }, []);
 
   return (

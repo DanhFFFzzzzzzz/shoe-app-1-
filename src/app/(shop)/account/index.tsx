@@ -160,31 +160,31 @@ const AccountScreen = () => {
 
       {isEditing ? (
         <View style={styles.editBox}>
-          <View style={styles.formGroup}>
+      <View style={styles.formGroup}>
             <Text style={styles.label}>Họ và tên:</Text>
-            <TextInput style={styles.input} value={profile.name} onChangeText={v => setProfile(p => p ? { ...p, name: v } : p)} />
-          </View>
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Giới tính:</Text>
-            <TextInput style={styles.input} value={profile.gender} onChangeText={v => setProfile(p => p ? { ...p, gender: v } : p)} />
-          </View>
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Địa chỉ:</Text>
-            <TextInput style={styles.input} value={profile.address} onChangeText={v => setProfile(p => p ? { ...p, address: v } : p)} />
-          </View>
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Số điện thoại:</Text>
-            <TextInput style={styles.input} value={profile.phone} onChangeText={v => setProfile(p => p ? { ...p, phone: v } : p)} keyboardType="phone-pad" />
-          </View>
-          <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
+        <TextInput style={styles.input} value={profile.name} onChangeText={v => setProfile(p => p ? { ...p, name: v } : p)} />
+      </View>
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>Giới tính:</Text>
+        <TextInput style={styles.input} value={profile.gender} onChangeText={v => setProfile(p => p ? { ...p, gender: v } : p)} />
+      </View>
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>Địa chỉ:</Text>
+        <TextInput style={styles.input} value={profile.address} onChangeText={v => setProfile(p => p ? { ...p, address: v } : p)} />
+      </View>
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>Số điện thoại:</Text>
+        <TextInput style={styles.input} value={profile.phone} onChangeText={v => setProfile(p => p ? { ...p, phone: v } : p)} keyboardType="phone-pad" />
+      </View>
+      <View style={styles.buttonRow}>
+        <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
               <Text style={styles.saveBtnText}>{saving ? 'Đang lưu...' : 'Lưu thay đổi'}</Text>
-            </TouchableOpacity>
+        </TouchableOpacity>
             <TouchableOpacity style={styles.cancelBtn} onPress={() => setIsEditing(false)}>
               <Text style={styles.cancelBtnText}>Hủy bỏ</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        </TouchableOpacity>
+      </View>
+    </View>
       ) : (
         <View style={styles.menuBox}>
           <MenuItem 
@@ -362,6 +362,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-});
+}); 
 
 export default AccountScreen; 
