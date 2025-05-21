@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, Pressable, ScrollView } from 'react-native';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 
 const user = {
   name: 'Nguyễn Văn A',
@@ -12,9 +13,11 @@ type MenuItemProps = {
   icon: React.ReactNode;
   label: string;
   last: boolean;
+  onPress?: () => void;
 };
 
 const AccountScreen = () => {
+  const navigation = useNavigation();
   return (
     <ScrollView style={styles.container}>
       <View style={styles.profileBox}>
@@ -23,7 +26,7 @@ const AccountScreen = () => {
         <Text style={styles.email}>{user.email}</Text>
       </View>
       <View style={styles.menuBox}>
-        <MenuItem icon={<MaterialIcons name="shopping-bag" size={22} color="#1976d2" />} label="Đơn hàng của tôi" last={false} />
+        <MenuItem icon={<MaterialIcons name="shopping-bag" size={22} color="#1976d2" />} label="Đơn hàng của tôi" last={false} onPress={() => navigation.navigate('orders' as never)} />
         <MenuItem icon={<MaterialIcons name="location-on" size={22} color="#1976d2" />} label="Địa chỉ giao hàng" last={false} />
         <MenuItem icon={<FontAwesome5 name="user-lock" size={20} color="#1976d2" />} label="Đổi mật khẩu" last={false} />
         <MenuItem icon={<MaterialIcons name="logout" size={22} color="#e53935" />} label="Đăng xuất" last={true} />
@@ -32,8 +35,8 @@ const AccountScreen = () => {
   );
 };
 
-const MenuItem = ({ icon, label, last }: MenuItemProps) => (
-  <Pressable style={[styles.menuItem, last && { borderBottomWidth: 0 }]}> 
+const MenuItem = ({ icon, label, last, onPress }: MenuItemProps) => (
+  <Pressable style={[styles.menuItem, last && { borderBottomWidth: 0 }]} onPress={onPress}>
     <View style={styles.menuIcon}>{icon}</View>
     <Text style={styles.menuLabel}>{label}</Text>
     <MaterialIcons name="keyboard-arrow-right" size={22} color="#bdbdbd" />

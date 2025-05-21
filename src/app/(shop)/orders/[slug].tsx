@@ -1,12 +1,13 @@
-import { ActivityIndicator, FlatList, StyleSheet, Text, View, Image } from 'react-native'
+import { ActivityIndicator, FlatList, StyleSheet, Text, View, Image, Button, Alert } from 'react-native'
 import React from 'react'
 import { Redirect, Stack, useLocalSearchParams } from 'expo-router';
 import { format } from 'date-fns';
-import { getMyOrder } from '../../../api/api';
+import { getMyOrder, useCancelOrder } from '../../../api/api';
 
 const OrderDetails = () => {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const { data: order, error, isLoading } = getMyOrder(slug);
+  const cancelOrderMutation = useCancelOrder();
 
   if (isLoading) return <ActivityIndicator />;
   if (error || !order) return <Text>Error: {error?.message}</Text>;
@@ -78,7 +79,43 @@ const OrderDetails = () => {
           </View>
         )}
         ListFooterComponent={
-          <Text style={styles.totalPrice}>Tổng tiền: {order.totalPrice?.toLocaleString('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 })}</Text>
+          <>
+            <Text style={styles.totalPrice}>Tổng tiền: {order.totalPrice?.toLocaleString('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 })}</Text>
+            {(order.status === 'Pending' || order.status === 'Processing') && (
+              <Button
+                title="Hủy đơn hàng"
+                color="#d32f2f"
+                onPress={async () => {
+                  Alert.alert(
+                    'Xác nhận',
+                    'Bạn có chắc chắn muốn hủy đơn hàng này?',
+                    [
+                      { text: 'Không', style: 'cancel' },
+                      {
+                        text: 'Có',
+                        style: 'destructive',
+                        onPress: async () => {
+                          try {
+                            await cancelOrderMutation.mutateAsync(order.slug);
+                            // TODO: Gửi thông báo đến admin tại đây
+                            Alert.alert('Thành công', 'Yêu cầu hủy đơn hàng đã được gửi. Vui lòng chờ xác nhận từ admin.');
+                          } catch (e: any) {
+                            Alert.alert('Lỗi', e.message || 'Không thể gửi yêu cầu hủy đơn hàng.');
+                          }
+                        },
+                      },
+                    ]
+                  );
+                }}
+                disabled={cancelOrderMutation.isPending}
+              />
+            )}
+            {order.status === 'CancelRequested' && (
+              <Text style={{ color: 'orange', marginTop: 10, textAlign: 'center' }}>
+                Đã gửi yêu cầu hủy, chờ xác nhận từ admin.
+              </Text>
+            )}
+          </>
         }
       />
     </>

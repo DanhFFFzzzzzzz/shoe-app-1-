@@ -53,7 +53,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: number
-          slug: string
+          slug?: string
           status: string
           totalPrice: number
           user: string

@@ -3,6 +3,7 @@ import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image, Alert, Acti
 import { FontAwesome, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../../lib/supabase';
+import { useRouter } from 'expo-router';
 
 const defaultAvatar = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
 
@@ -23,12 +24,13 @@ type MenuItemProps = {
   last: boolean;
   onPress?: () => void;
 };
-
+// Hàm lấy thông tin người dùng
 const AccountScreen = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const router = useRouter();
 
   const fetchProfile = async () => {
     setLoading(true);
@@ -69,11 +71,11 @@ const AccountScreen = () => {
       setLoading(false);
     }
   };
-
+// Gọi hàm lấy thông tin người dùng khi component được render
   useEffect(() => {
     fetchProfile();
   }, []);
-
+ // Lắng nghe sự thay đổi trạng thái đăng nhập
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
@@ -87,7 +89,7 @@ const AccountScreen = () => {
       subscription.unsubscribe();
     };
   }, []);
-
+// Hàm thay đổi ảnh đại diện
   const handleAvatarChange = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -112,7 +114,7 @@ const AccountScreen = () => {
       setProfile(p => p ? { ...p, avatar_url: publicUrl.publicUrl } : p);
     }
   };
-
+// Hàm lưu thông tin người dùng
   const handleSave = async () => {
     if (!profile) return;
     setSaving(true);
@@ -135,7 +137,7 @@ const AccountScreen = () => {
       Alert.alert('Lỗi', 'Cập nhật thông tin thất bại!');
     }
   };
-
+  // Hàm đăng xuất
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
@@ -197,6 +199,7 @@ const AccountScreen = () => {
             icon={<MaterialIcons name="shopping-bag" size={22} color="#1976d2" />} 
             label="Đơn hàng của tôi" 
             last={false}
+            onPress={() => router.replace('/orders')}
           />
           <MenuItem 
             icon={<MaterialIcons name="location-on" size={22} color="#1976d2" />} 

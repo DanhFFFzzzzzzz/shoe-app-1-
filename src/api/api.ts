@@ -176,15 +176,11 @@ export const createOrder = () => {
         throw new Error('Không tìm thấy phiên đăng nhập');
       }
 
-      // Tạo mã đơn hàng ngẫu nhiên
-      const slug = generateOrderSlug();
-
-      // Tạo đơn hàng mới trong database
+      // Không generateOrderSlug ở client, không truyền slug
       const { data, error } = await supabase
         .from('order')
         .insert({
           totalPrice,
-          slug,
           user: user.id,
           status: 'Pending',
           customer_name,
@@ -199,6 +195,7 @@ export const createOrder = () => {
         throw new Error('Không thể tạo đơn hàng: ' + error.message);
       }
 
+      // Nếu cần dùng slug, lấy từ data.slug
       return data;
     },
 
@@ -324,4 +321,28 @@ export const updateProductQuantity = async (productId: number, size: number, qua
   }
 
   return response.json();
+};
+
+/**
+ * Hook để hủy đơn hàng (cập nhật trạng thái thành 'CancelRequested')
+ * @param slug - Slug của đơn hàng cần hủy
+ * @returns Mutation hook để hủy đơn hàng
+ */
+export const useCancelOrder = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    async mutationFn(slug: string) {
+      const { data, error } = await supabase
+        .from('order')
+        .update({ status: 'CancelRequested' })
+        .eq('slug', slug);
+      if (error) {
+        throw new Error('Không thể gửi yêu cầu hủy đơn hàng: ' + error.message);
+      }
+      return data;
+    },
+    async onSuccess() {
+      await queryClient.invalidateQueries({ queryKey: ['orders'] });
+    },
+  });
 };
