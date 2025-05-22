@@ -75,5 +75,26 @@ export const productApi = {
     const { data, error } = await supabase.from('product').select('*');
     if (error) throw error;
     return data;
+  },
+
+  // Hàm cập nhật maxQuantity cho sản phẩm
+  updateProductMaxQuantity: async (productId: number) => {
+    // Lấy tổng số lượng còn lại của tất cả size
+    const { data: sizes, error } = await supabase
+      .from('product_size')
+      .select('quantity')
+      .eq('product', productId);
+
+    if (error) throw error;
+
+    const total = (sizes || []).reduce((sum, s) => sum + (s.quantity || 0), 0);
+
+    // Cập nhật maxQuantity
+    const { error: updateError } = await supabase
+      .from('product')
+      .update({ maxQuantity: total })
+      .eq('id', productId);
+
+    if (updateError) throw updateError;
   }
 }; 

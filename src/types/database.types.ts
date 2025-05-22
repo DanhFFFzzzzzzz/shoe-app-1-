@@ -90,6 +90,7 @@ export type Database = {
           order: number
           product: number
           quantity: number
+          size: number
         }
         Insert: {
           created_at?: string
@@ -97,6 +98,7 @@ export type Database = {
           order: number
           product: number
           quantity: number
+          size: number
         }
         Update: {
           created_at?: string
@@ -104,6 +106,7 @@ export type Database = {
           order?: number
           product?: number
           quantity?: number
+          size?: number
         }
         Relationships: [
           {
