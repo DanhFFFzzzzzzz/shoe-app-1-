@@ -8,6 +8,8 @@ import {
 } from 'react';
 import { supabase } from '../lib/supabase';
 
+//quản lý trạng thái xác thực (authentication) bằng cách sử dụng Supabase
+
 type AuthData = {
   session: Session | null;
   mounting: boolean;

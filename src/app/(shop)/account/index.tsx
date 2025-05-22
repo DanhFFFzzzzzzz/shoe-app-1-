@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image, Alert, ActivityIndicator, ScrollView, Pressable } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image, Alert, ActivityIndicator, ScrollView, Pressable, Modal } from 'react-native';
 import { FontAwesome, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../../lib/supabase';
 import { useRouter } from 'expo-router';
+import NetInfo from '@react-native-community/netinfo';
 
 const defaultAvatar = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
 
@@ -30,6 +31,11 @@ const AccountScreen = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changing, setChanging] = useState(false);
   const router = useRouter();
 
   const fetchProfile = async () => {
@@ -91,57 +97,148 @@ const AccountScreen = () => {
   }, []);
 // Hàm thay đổi ảnh đại diện
   const handleAvatarChange = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
-    if (!result.canceled && profile?.id) {
-      const file = result.assets[0];
-      const fileExt = file.uri.split('.').pop();
-      const fileName = `${profile.id}.${fileExt}`;
-      const response = await fetch(file.uri);
-      const blob = await response.blob();
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(fileName, blob, { upsert: true });
-      if (uploadError) {
-        Alert.alert('Lỗi', 'Không thể tải lên ảnh đại diện!');
+    try {
+      // Check network connection
+      const netInfo = await NetInfo.fetch();
+      if (!netInfo.isConnected) {
+        Alert.alert('Lỗi', 'Không có kết nối mạng. Vui lòng kiểm tra lại kết nối của bạn.');
         return;
       }
-      const { data: publicUrl } = supabase.storage.from('avatars').getPublicUrl(fileName);
-      setProfile(p => p ? { ...p, avatar_url: publicUrl.publicUrl } : p);
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
+      if (!result.canceled && profile?.id) {
+        const file = result.assets[0];
+        const fileExt = file.uri.split('.').pop();
+        const fileName = `${profile.id}.${fileExt}`;
+        const response = await fetch(file.uri);
+        const blob = await response.blob();
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(fileName, blob, { upsert: true });
+        if (uploadError) {
+          Alert.alert('Lỗi', 'Không thể tải lên ảnh đại diện!');
+          return;
+        }
+        const { data: publicUrl } = supabase.storage.from('avatars').getPublicUrl(fileName);
+        setProfile(p => p ? { ...p, avatar_url: publicUrl.publicUrl } : p);
+      }
+    } catch (error) {
+      Alert.alert('Lỗi', 'Có lỗi xảy ra khi thay đổi ảnh đại diện!');
     }
   };
 // Hàm lưu thông tin người dùng
   const handleSave = async () => {
     if (!profile) return;
     setSaving(true);
-    const updates = {
-      name: profile.name,
-      gender: profile.gender,
-      address: profile.address,
-      phone: profile.phone,
-      avatar_url: profile.avatar_url,
-    };
-    const { error } = await supabase
-      .from('users')
-      .update(updates)
-      .eq('id', profile.id);
-    setSaving(false);
-    if (!error) {
-      Alert.alert('Thành công', 'Cập nhật thông tin thành công!');
-      setIsEditing(false);
-    } else {
-      Alert.alert('Lỗi', 'Cập nhật thông tin thất bại!');
+    try {
+      // Check network connection
+      const netInfo = await NetInfo.fetch();
+      if (!netInfo.isConnected) {
+        Alert.alert('Lỗi', 'Không có kết nối mạng. Vui lòng kiểm tra lại kết nối của bạn.');
+        setSaving(false);
+        return;
+      }
+
+      const updates = {
+        name: profile.name,
+        gender: profile.gender,
+        address: profile.address,
+        phone: profile.phone,
+        avatar_url: profile.avatar_url,
+      };
+      const { error } = await supabase
+        .from('users')
+        .update(updates)
+        .eq('id', profile.id);
+      
+      if (!error) {
+        Alert.alert('Thành công', 'Cập nhật thông tin thành công!');
+        setIsEditing(false);
+      } else {
+        Alert.alert('Lỗi', 'Cập nhật thông tin thất bại!');
+      }
+    } catch (error) {
+      Alert.alert('Lỗi', 'Có lỗi xảy ra khi cập nhật thông tin!');
+    } finally {
+      setSaving(false);
     }
   };
   // Hàm đăng xuất
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      Alert.alert('Lỗi', 'Không thể đăng xuất!');
+    try {
+      // Check network connection
+      const netInfo = await NetInfo.fetch();
+      if (!netInfo.isConnected) {
+        Alert.alert('Lỗi', 'Không có kết nối mạng. Vui lòng kiểm tra lại kết nối của bạn.');
+        return;
+      }
+
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        Alert.alert('Lỗi', 'Không thể đăng xuất!');
+      }
+    } catch (error) {
+      Alert.alert('Lỗi', 'Có lỗi xảy ra khi đăng xuất!');
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ thông tin!');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Alert.alert('Lỗi', 'Mật khẩu mới không khớp!');
+      return;
+    }
+    if (newPassword.length < 6) {
+      Alert.alert('Lỗi', 'Mật khẩu mới phải có ít nhất 6 ký tự!');
+      return;
+    }
+
+    setChanging(true);
+    try {
+      // Check network connection
+      const netInfo = await NetInfo.fetch();
+      if (!netInfo.isConnected) {
+        Alert.alert('Lỗi', 'Không có kết nối mạng. Vui lòng kiểm tra lại kết nối của bạn.');
+        setChanging(false);
+        return;
+      }
+
+      // Verify old password first
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: profile?.email || '',
+        password: oldPassword,
+      });
+
+      if (signInError) {
+        Alert.alert('Lỗi', 'Mật khẩu cũ không đúng!');
+        setChanging(false);
+        return;
+      }
+
+      // Update password
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      
+      if (!error) {
+        Alert.alert('Thành công', 'Đổi mật khẩu thành công!');
+        setShowChangePassword(false);
+        setOldPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        Alert.alert('Lỗi', error.message || 'Đổi mật khẩu thất bại!');
+      }
+    } catch (error) {
+      Alert.alert('Lỗi', 'Có lỗi xảy ra khi đổi mật khẩu!');
+    } finally {
+      setChanging(false);
     }
   };
 
@@ -210,6 +307,7 @@ const AccountScreen = () => {
             icon={<FontAwesome5 name="user-lock" size={20} color="#1976d2" />} 
             label="Đổi mật khẩu" 
             last={false}
+            onPress={() => setShowChangePassword(true)}
           />
           <MenuItem 
             icon={<MaterialIcons name="logout" size={22} color="#e53935" />} 
@@ -219,6 +317,47 @@ const AccountScreen = () => {
           />
         </View>
       )}
+      <Modal visible={showChangePassword} transparent animationType="slide">
+        <View style={{ flex:1, backgroundColor:'rgba(0,0,0,0.3)', justifyContent:'center', alignItems:'center' }}>
+          <View style={{ backgroundColor:'#fff', borderRadius:12, padding:24, width:'85%' }}>
+            <Text style={{ fontSize:18, fontWeight:'bold', marginBottom:16 }}>Đổi mật khẩu</Text>
+            <TextInput
+              placeholder="Mật khẩu cũ"
+              secureTextEntry
+              style={styles.input}
+              value={oldPassword}
+              onChangeText={setOldPassword}
+            />
+            <TextInput
+              placeholder="Mật khẩu mới"
+              secureTextEntry
+              style={styles.input}
+              value={newPassword}
+              onChangeText={setNewPassword}
+            />
+            <TextInput
+              placeholder="Xác nhận mật khẩu mới"
+              secureTextEntry
+              style={styles.input}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+            />
+            <View style={{ flexDirection:'row', marginTop:18 }}>
+              <TouchableOpacity style={[styles.saveBtn, { flex:1 }]} onPress={handleChangePassword} disabled={changing}>
+                <Text style={styles.saveBtnText}>{changing ? 'Đang đổi...' : 'Đổi mật khẩu'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.cancelBtn, { flex:1, marginLeft:8 }]} onPress={() => {
+                setShowChangePassword(false);
+                setOldPassword('');
+                setNewPassword('');
+                setConfirmPassword('');
+              }}>
+                <Text style={styles.cancelBtnText}>Hủy</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };

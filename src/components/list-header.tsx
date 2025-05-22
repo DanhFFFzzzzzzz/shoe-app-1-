@@ -43,11 +43,13 @@ export const ListHeader = ({
         setRecentProducts([]);
         return;
       }
+      // Lấy thông tin chi tiết của user từ bảng "users"
       const { data, error } = await supabase
         .from('users')
         .select('name, avatar_url')
         .eq('id', user.id)
         .single();
+      // Nếu có lỗi hoặc không tìm thấy user, sử dụng thông tin mặc định
       if (!error && data) {
         setProfile({
           id: user.id,
@@ -70,7 +72,7 @@ export const ListHeader = ({
     };
     fetchProfile();
   }, []);
-
+  //
   const handleSignOut = async () => {
     if (profile?.id) {
       await AsyncStorage.removeItem(`recently_viewed_${profile.id}`);
