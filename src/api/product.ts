@@ -1,6 +1,11 @@
 import { supabase } from '../lib/supabase';
 import { ProductWithSizes } from '../types/database.types';
 
+const API_BASE = process.env.NEXT_PUBLIC_RECOMMENDATION_API;
+
+// ✅ Log địa chỉ API để kiểm tra khi chạy
+console.log('🌐 API Gợi ý sản phẩm:', API_BASE);
+
 export const productApi = {
   // Lấy thông tin sản phẩm theo slug
   getProductBySlug: async (slug: string): Promise<ProductWithSizes> => {
@@ -19,7 +24,6 @@ export const productApi = {
 
     if (sizeError) throw sizeError;
 
-    // Không lọc size nữa, để hiển thị tất cả size
     return { ...data, sizes: sizes || [] };
   },
 
@@ -34,7 +38,7 @@ export const productApi = {
     if (error) throw error;
   },
 
-  // Lấy số lượng tồn kho của sản phẩm
+  // Lấy số lượng tồn kho
   getProductQuantity: async (productId: number) => {
     const { data, error } = await supabase
       .from('product_size')
@@ -45,7 +49,7 @@ export const productApi = {
     return data;
   },
 
-  // Tăng lại số lượng sản phẩm khi xóa khỏi giỏ hàng
+  // Tăng lại số lượng
   incrementProductQuantity: async (productId: number, size: number, quantity: number) => {
     const { error } = await supabase.rpc('increment_product_quantity', {
       p_product_id: productId,
@@ -55,13 +59,19 @@ export const productApi = {
     if (error) throw error;
   },
 
-  // Lấy sản phẩm đề xuất
+  // ✅ Gợi ý sản phẩm (dùng biến môi trường cho IP)
   getProductRecommendations: async (productId: number) => {
     try {
-      const response = await fetch(`http://192.168.1.4:5555/api?id=${productId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch recommendations');
+      if (!API_BASE) {
+        console.error('❌ Biến môi trường NEXT_PUBLIC_RECOMMENDATION_API chưa được thiết lập!');
+        return [];
       }
+
+      const response = await fetch(`${API_BASE}?id=${productId}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch recommendations: ${response.statusText}`);
+      }
+
       const data = await response.json();
       return data['san pham goi y'];
     } catch (error) {
@@ -77,9 +87,8 @@ export const productApi = {
     return data;
   },
 
-  // Hàm cập nhật maxQuantity cho sản phẩm
+  // Cập nhật maxQuantity
   updateProductMaxQuantity: async (productId: number) => {
-    // Lấy tổng số lượng còn lại của tất cả size
     const { data: sizes, error } = await supabase
       .from('product_size')
       .select('quantity')
@@ -89,7 +98,6 @@ export const productApi = {
 
     const total = (sizes || []).reduce((sum, s) => sum + (s.quantity || 0), 0);
 
-    // Cập nhật maxQuantity
     const { error: updateError } = await supabase
       .from('product')
       .update({ maxQuantity: total })
@@ -97,4 +105,4 @@ export const productApi = {
 
     if (updateError) throw updateError;
   }
-}; 
+};
