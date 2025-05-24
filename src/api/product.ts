@@ -1,10 +1,9 @@
 import { supabase } from '../lib/supabase';
 import { ProductWithSizes } from '../types/database.types';
 
-const API_BASE = process.env.NEXT_PUBLIC_RECOMMENDATION_API;
 
-// ✅ Log địa chỉ API để kiểm tra khi chạy
-console.log('🌐 API Gợi ý sản phẩm:', API_BASE);
+//  địa chỉ API để kiểm tra khi chạy
+const API_BASE = "http://192.168.1.4:5555/api";
 
 export const productApi = {
   // Lấy thông tin sản phẩm theo slug

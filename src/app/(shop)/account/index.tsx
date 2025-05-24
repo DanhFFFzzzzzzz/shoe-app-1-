@@ -299,9 +299,10 @@ const AccountScreen = () => {
             onPress={() => router.replace('/orders')}
           />
           <MenuItem 
-            icon={<MaterialIcons name="location-on" size={22} color="#1976d2" />} 
-            label="Địa chỉ giao hàng" 
+            icon={<MaterialIcons name="favorite" size={22} color="#e53935" />} 
+            label="Danh sách yêu thích" 
             last={false}
+            onPress={() => router.push('/favorite-products')}
           />
           <MenuItem 
             icon={<FontAwesome5 name="user-lock" size={20} color="#1976d2" />} 

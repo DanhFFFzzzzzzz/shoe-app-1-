@@ -240,6 +240,84 @@ export type Database = {
         }
         Relationships: []
       }
+      product_review: {
+        Row: {
+          id: number
+          created_at: string
+          rating: number
+          comment: string
+          product: number
+          user: string
+        }
+        Insert: {
+          id?: number
+          created_at?: string
+          rating: number
+          comment: string
+          product: number
+          user: string
+        }
+        Update: {
+          id?: number
+          created_at?: string
+          rating?: number
+          comment?: string
+          product?: number
+          user?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_review_product_fkey"
+            columns: ["product"]
+            isOneToOne: false
+            referencedRelation: "product"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_review_user_fkey"
+            columns: ["user"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      favorite_product: {
+        Row: {
+          id: number;
+          created_at: string;
+          user: string;
+          product: number;
+        };
+        Insert: {
+          id?: number;
+          created_at?: string;
+          user: string;
+          product: number;
+        };
+        Update: {
+          id?: number;
+          created_at?: string;
+          user?: string;
+          product?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "favorite_product_user_fkey";
+            columns: ["user"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "favorite_product_product_fkey";
+            columns: ["product"];
+            isOneToOne: false;
+            referencedRelation: "product";
+            referencedColumns: ["id"];
+          }
+        ];
+      }
     }
     Views: {
       [_ in never]: never

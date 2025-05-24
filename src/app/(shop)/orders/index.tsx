@@ -21,10 +21,12 @@ const Orders = () => {
     const s = status.trim().toLowerCase();
     if (['pending', 'chờ xác nhận'].includes(s)) return 'Chờ xác nhận';
     if (['processing', 'in progress', 'đang xử lý'].includes(s)) return 'Đang xử lý';
-    if (['completed', 'delivered', 'đã giao'].includes(s)) return 'Đã giao';
+    if (['delivered', 'đã giao'].includes(s)) return 'Đã giao';
+    if (['completed', 'đã hoàn thành'].includes(s)) return 'Đã hoàn thành';
     if (['shipped', 'đã gửi hàng'].includes(s)) return 'Đã gửi hàng';
     if (['intransit', 'đang vận chuyển'].includes(s)) return 'Đang vận chuyển';
     if (['cancelled', 'đã hủy'].includes(s)) return 'Đã hủy';
+    if (['cancelrequested'].includes(s)) return 'Yêu cầu hủy';
     return status;
   };
 
@@ -33,10 +35,12 @@ const Orders = () => {
     const s = status.trim().toLowerCase();
     if (s === 'pending' || s === 'chờ xác nhận') return styles.statusBadge_Pending;
     if (s === 'processing' || s === 'in progress' || s === 'đang xử lý') return styles.statusBadge_Processing;
-    if (s === 'completed' || s === 'delivered' || s === 'đã giao') return styles.statusBadge_Completed;
+    if (s === 'delivered' || s === 'đã giao') return styles.statusBadge_Delivered;
+    if (s === 'completed' || s === 'đã hoàn thành') return styles.statusBadge_Completed;
     if (s === 'shipped' || s === 'đã gửi hàng') return styles.statusBadge_Shipped;
     if (s === 'intransit' || s === 'đang vận chuyển') return styles.statusBadge_InTransit;
     if (s === 'cancelled' || s === 'đã hủy') return styles.statusBadge_Cancelled;
+    if (s === 'cancelrequested') return styles.statusBadge_Cancelled;
     return styles.statusBadge;
   };
 
@@ -88,6 +92,7 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 12, fontWeight: 'bold', color: '#fff' },
   statusBadge_Pending: { backgroundColor: '#ffcc00' },
   statusBadge_Processing: { backgroundColor: '#90caf9' },
+  statusBadge_Delivered: { backgroundColor: '#1976d2' },
   statusBadge_Completed: { backgroundColor: '#4caf50' },
   statusBadge_Shipped: { backgroundColor: '#7e57c2' },
   statusBadge_InTransit: { backgroundColor: '#ff9800' },

@@ -3,6 +3,8 @@ import React from 'react'
 import { Redirect, Stack, useLocalSearchParams } from 'expo-router';
 import { format } from 'date-fns';
 import { getMyOrder, useCancelOrder } from '../../../api/api';
+import { supabase } from '../../../lib/supabase';
+import { ProductReviews } from '../../../components/product/ProductReviews';
 
 const OrderDetails = () => {
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -15,6 +17,7 @@ const OrderDetails = () => {
   const orderItems = order.order_items.map((orderItem: any) => {
     return {
       id: orderItem.id,
+      productId: orderItem.products.id,
       title: orderItem.products.title,
       heroImage: orderItem.products.heroImage,
       price: orderItem.products.price,
@@ -28,16 +31,20 @@ const OrderDetails = () => {
     switch (status) {
       case 'Pending':
         return 'Chờ xác nhận';
-      case 'Completed':
+      case 'Processing':
+        return 'Đang xử lý';
+      case 'Delivered':
         return 'Đã giao';
+      case 'Completed':
+        return 'Đã hoàn thành';
       case 'Shipped':
         return 'Đã gửi hàng';
       case 'InTransit':
         return 'Đang vận chuyển';
-      case 'Processing':
-        return 'Đang xử lý';
       case 'Cancelled':
         return 'Đã hủy';
+      case 'CancelRequested':
+        return 'Yêu cầu hủy';
       default:
         return status;
     }
@@ -75,6 +82,13 @@ const OrderDetails = () => {
               <Text style={styles.itemPrice}>Giá: {item.price.toLocaleString('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 })}</Text>
               <Text style={styles.itemQuantity}>Số lượng: {item.quantity}</Text>
               <Text style={styles.itemSize}>Size: {item.size ?? 'N/A'}</Text>
+              {/* Hiển thị form đánh giá khi đơn hàng đã hoàn thành */}
+              {order.status === 'Completed' && (
+                <View style={{ marginTop: 18, backgroundColor: '#f8f9fa', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#e0e0e0', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 }}>
+                  <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 8, color: '#1976d2', textAlign: 'center', letterSpacing: 0.2 }}>Đánh giá sản phẩm này</Text>
+                  <ProductReviews productId={item.productId} orderId={order.id} />
+                </View>
+              )}
             </View>
           </View>
         )}
@@ -114,6 +128,23 @@ const OrderDetails = () => {
               <Text style={{ color: 'orange', marginTop: 10, textAlign: 'center' }}>
                 Đã gửi yêu cầu hủy, chờ xác nhận từ admin.
               </Text>
+            )}
+            {order.status === 'Delivered' && (
+              <Button
+                title="Xác nhận hoàn thành"
+                color="#4caf50"
+                onPress={async () => {
+                  try {
+                    await supabase
+                      .from('order')
+                      .update({ status: 'Completed' })
+                      .eq('id', order.id);
+                    Alert.alert('Thành công', 'Đơn hàng đã được xác nhận hoàn thành.');
+                  } catch (e: any) {
+                    Alert.alert('Lỗi', e.message || 'Không thể xác nhận hoàn thành.');
+                  }
+                }}
+              />
             )}
           </>
         }

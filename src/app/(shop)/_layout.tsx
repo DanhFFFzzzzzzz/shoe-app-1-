@@ -58,6 +58,15 @@ const TabsLayout = () => {
                     }}
                 />
                 <Tabs.Screen
+                    name="favorite-products/index"
+                    options={{
+                        title: 'Favorite',
+                        tabBarIcon: ({ color, focused }) => (
+                            <TabBarIcon name='heart' color={color} focused={focused} />
+                        )
+                    }}
+                />
+                <Tabs.Screen
                     name="account/index"
                     options={{
                         title: 'Account',

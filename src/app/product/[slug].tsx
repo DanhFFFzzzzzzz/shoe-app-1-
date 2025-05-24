@@ -8,6 +8,7 @@ import {
   View,
   ScrollView,
   Dimensions,
+  Pressable,
 } from 'react-native';
 import { useToast } from 'react-native-toast-notifications';
 import { useCartStore } from '../../store/cart-store';
@@ -20,6 +21,8 @@ import { QuantitySelector } from '../../components/product/QuantitySelector';
 import { AddToCartButton } from '../../components/product/AddToCartButton';
 import { supabase } from '../../lib/supabase';
 import { ProductRecommendations } from '../../components/product/ProductRecommendations';
+import { ProductReviews } from '../../components/product/ProductReviews';
+import { MaterialIcons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 const IMAGE_SIZE = 90;
@@ -35,6 +38,9 @@ const ProductDetails = () => {
 
   const [quantity, setQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState<number | null>(null);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteId, setFavoriteId] = useState<number | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   // Fetch product data
   useEffect(() => {
@@ -82,6 +88,62 @@ const ProductDetails = () => {
     };
     saveRecent();
   }, [product?.id]);
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUserId(user?.id || null);
+    };
+    getUser();
+  }, []);
+
+  useEffect(() => {
+    if (!product || !userId) return;
+    checkFavorite();
+  }, [product?.id, userId]);
+
+  const checkFavorite = async () => {
+    if (!product || !userId) return;
+    try {
+      const { data, error } = await supabase
+        .from('favorite_product')
+        .select('id')
+        .eq('user', userId)
+        .eq('product', product.id)
+        .single();
+      setIsFavorite(!!data);
+      setFavoriteId(data?.id || null);
+    } catch (e) {
+      setIsFavorite(false);
+      setFavoriteId(null);
+    }
+  };
+
+  const toggleFavorite = async () => {
+    if (!product || !userId) {
+      toast.show('Bạn cần đăng nhập để sử dụng tính năng này!', { type: 'warning' });
+      return;
+    }
+    try {
+      if (isFavorite && favoriteId) {
+        await supabase.from('favorite_product').delete().eq('id', favoriteId);
+        toast.show('Đã bỏ khỏi danh sách yêu thích!', { type: 'normal' });
+      } else {
+        const { data, error } = await supabase.from('favorite_product').insert({
+          user: userId,
+          product: product.id,
+        }).select('id').single();
+        if (!error) {
+          toast.show('Đã thêm vào danh sách yêu thích!', { type: 'success' });
+        } else {
+          toast.show('Có lỗi khi thêm vào yêu thích!', { type: 'danger' });
+        }
+      }
+      await checkFavorite();
+    } catch (e) {
+      toast.show('Có lỗi xảy ra!', { type: 'danger' });
+    }
+  };
 
   if (isLoading) return <ActivityIndicator style={{ flex: 1 }} size="large" color="#007bff" />;
   if (error) return <Text style={{ color: 'red', textAlign: 'center', marginTop: 40 }}>Error: {error}</Text>;
@@ -224,7 +286,18 @@ const ProductDetails = () => {
       </View>
 
       <View style={styles.contentBox}>
-        <Text style={styles.title}>{product.title}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <Text style={styles.title}>{product.title}</Text>
+          {userId && (
+            <Pressable onPress={toggleFavorite} hitSlop={10} style={{ marginLeft: 8 }}>
+              <MaterialIcons
+                name={isFavorite ? 'favorite' : 'favorite-border'}
+                size={30}
+                color={isFavorite ? '#e53935' : '#bbb'}
+              />
+            </Pressable>
+          )}
+        </View>
         <Text style={styles.description}>{product.description}</Text>
 
         {/* Bảng chọn size */}
@@ -276,9 +349,10 @@ const ProductDetails = () => {
       </View>
 
       {/* Sản phẩm gợi ý */}
-      <View style={styles.recommendBox}>
-        <ProductRecommendations currentProductId={product.id} />
-      </View>
+      <ProductRecommendations currentProductId={product.id} />
+
+      {/* Đánh giá sản phẩm */}
+      <ProductReviews productId={product.id} />
     </ScrollView>
   );
 };
