@@ -38,7 +38,7 @@ export const ProductReviews = ({ productId, orderId }: ProductReviewsProps) => {
     try {
       const { data, error } = await supabase
         .from('product_review')
-        .select('*, user:users(email, name)')
+        .select('*, user:users(email, name), order')
         .eq('product', productId)
         .order('created_at', { ascending: false });
 
@@ -48,9 +48,16 @@ export const ProductReviews = ({ productId, orderId }: ProductReviewsProps) => {
       // Kiểm tra nếu user đã đánh giá sản phẩm này trong đơn hàng này
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const found = (data || []).find(r => r.user === user.id && r.product === productId);
+        let found;
+        if (orderId) {
+          found = (data || []).find(r => r.user === user.id && r.product === productId && r.order === orderId);
+        } else {
+          found = (data || []).find(r => r.user === user.id && r.product === productId);
+        }
         setHasReviewed(!!found);
         setMyReview(found || null);
+        // Nếu đã review thì không cho phép review nữa
+        setCanReview(canReview => canReview && !found);
       } else {
         setHasReviewed(false);
         setMyReview(null);
@@ -74,7 +81,19 @@ export const ProductReviews = ({ productId, orderId }: ProductReviewsProps) => {
           .eq('id', orderId)
           .single();
 
-        setCanReview(order?.status === 'Completed' || order?.status === 'completed');
+        // Chỉ cho phép review nếu đơn đã hoàn thành
+        if (order?.status === 'Completed' || order?.status === 'completed') {
+          // Kiểm tra đã review chưa
+          const { data: reviews } = await supabase
+            .from('product_review')
+            .select('id')
+            .eq('product', productId)
+            .eq('user', user.id)
+            .eq('order', orderId);
+          setCanReview(!reviews || reviews.length === 0);
+        } else {
+          setCanReview(false);
+        }
       } else {
         const { data: orders } = await supabase
           .from('order')
@@ -91,7 +110,13 @@ export const ProductReviews = ({ productId, orderId }: ProductReviewsProps) => {
           order.order_item.some(item => item.product === productId)
         );
 
-        setCanReview(!!hasPurchased);
+        // Kiểm tra đã review chưa
+        const { data: reviews } = await supabase
+          .from('product_review')
+          .select('id')
+          .eq('product', productId)
+          .eq('user', user.id);
+        setCanReview(!!hasPurchased && (!reviews || reviews.length === 0));
       }
     } catch (error) {
       console.error('Error checking review eligibility:', error);
@@ -112,12 +137,43 @@ export const ProductReviews = ({ productId, orderId }: ProductReviewsProps) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Bạn cần đăng nhập để đánh giá');
 
-      const { error } = await supabase.from('product_review').insert({
+      // Nếu đã đánh giá rồi thì không cho phép nữa (chặn cả khi submit nhanh liên tục)
+      let alreadyReviewed = false;
+      if (orderId) {
+        const { data: reviews } = await supabase
+          .from('product_review')
+          .select('id')
+          .eq('product', productId)
+          .eq('user', user.id)
+          .eq('order', orderId);
+        alreadyReviewed = !!(reviews && reviews.length > 0);
+      } else {
+        const { data: reviews } = await supabase
+          .from('product_review')
+          .select('id')
+          .eq('product', productId)
+          .eq('user', user.id);
+        alreadyReviewed = !!(reviews && reviews.length > 0);
+      }
+      if (alreadyReviewed) {
+        toast.show('Bạn chỉ được đánh giá 1 lần cho sản phẩm này trong đơn hàng này!', {
+          type: 'warning',
+          placement: 'top',
+        });
+        setSubmitting(false);
+        fetchReviews();
+        return;
+      }
+
+      const insertData: any = {
         product: productId,
         user: user.id,
         rating: userRating,
         comment,
-      });
+      };
+      if (orderId) insertData.order = orderId;
+
+      const { error } = await supabase.from('product_review').insert(insertData);
 
       if (error) throw error;
 

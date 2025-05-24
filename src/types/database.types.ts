@@ -248,6 +248,7 @@ export type Database = {
           comment: string
           product: number
           user: string
+          order: number
         }
         Insert: {
           id?: number
@@ -256,6 +257,7 @@ export type Database = {
           comment: string
           product: number
           user: string
+          order?: number
         }
         Update: {
           id?: number
@@ -264,6 +266,7 @@ export type Database = {
           comment?: string
           product?: number
           user?: string
+          order?: number
         }
         Relationships: [
           {
