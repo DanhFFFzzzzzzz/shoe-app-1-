@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { getMyOrder, useCancelOrder } from '../../../api/api';
 import { supabase } from '../../../lib/supabase';
 import { ProductReviews } from '../../../components/product/ProductReviews';
+import { productApi } from '../../../api/product';
 
 const OrderDetails = () => {
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -110,9 +111,12 @@ const OrderDetails = () => {
                         style: 'destructive',
                         onPress: async () => {
                           try {
+                            // Trả lại số lượng cho từng sản phẩm
+                            for (const item of orderItems) {
+                              await productApi.incrementProductQuantity(item.productId, item.size, item.quantity);
+                            }
                             await cancelOrderMutation.mutateAsync(order.slug);
-                            // TODO: Gửi thông báo đến admin tại đây
-                            Alert.alert('Thành công', 'Yêu cầu hủy đơn hàng đã được gửi. Vui lòng chờ xác nhận từ admin.');
+                            Alert.alert('Thành công', 'Yêu cầu hủy đơn hàng đã được gửi. Số lượng sản phẩm đã được hoàn trả về kho. Vui lòng chờ xác nhận từ admin.');
                           } catch (e: any) {
                             Alert.alert('Lỗi', e.message || 'Không thể gửi yêu cầu hủy đơn hàng.');
                           }
