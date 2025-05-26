@@ -8,6 +8,8 @@ import { Link, router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../lib/supabase';
 import { useCartStore } from '../../store/cart-store';
+import { productApi } from '../../api/product';
+import { useAuth } from '../../providers/auth-provider';
 
 const { width } = Dimensions.get('window');
 const CARD_MARGIN = 10;
@@ -28,6 +30,7 @@ const Home = () => {
   const [recentProducts, setRecentProducts] = useState<any[]>([]);
   const [currentBanner, setCurrentBanner] = useState(0);
   const { getItemCount } = useCartStore();
+  const { user } = useAuth();
 
   useEffect(() => {
     // Lấy sản phẩm đã xem gần đây từ AsyncStorage
@@ -52,6 +55,46 @@ const Home = () => {
     }, 2500); // 2.5 giây đổi ảnh
     return () => clearInterval(interval);
   }, []);
+
+  // Lấy sản phẩm collaborative recommendation
+  const { data: collaborativeRecommendations, isLoading: isLoadingCollaborative } = useQuery({
+    queryKey: ['collaborativeRecommendations', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      // Lấy danh sách title từ collaborative API
+      const titles = await productApi.getCollaborativeRecommendations(user.id);
+      if (!titles.length) return [];
+      // Lấy chi tiết sản phẩm từ Supabase theo title
+      const { data: products, error } = await supabase
+        .from('product')
+        .select('*')
+        .in('title', titles);
+      if (error) return [];
+      // Sắp xếp lại theo thứ tự titles
+      return titles.map((title: string) => products.find((p: any) => p.title === title)).filter(Boolean);
+    },
+    enabled: !!user?.id,
+  });
+
+  // Lấy sản phẩm gợi ý content-based cho user (dựa trên sản phẩm đầu tiên)
+  const { data: contentBasedRecommendations, isLoading: isLoadingContentBased } = useQuery({
+    queryKey: ['contentBasedRecommendations', data?.products?.[0]?.id],
+    queryFn: async () => {
+      if (!data?.products?.length) return [];
+      // Lấy gợi ý theo sản phẩm đầu tiên
+      const titles = await productApi.getProductRecommendations(data.products[0].id);
+      if (!titles.length) return [];
+      // Lấy chi tiết sản phẩm từ Supabase theo title
+      const { data: productsData, error } = await supabase
+        .from('product')
+        .select('*')
+        .in('title', titles);
+      if (error) return [];
+      // Sắp xếp lại theo thứ tự titles
+      return titles.map((title: string) => productsData.find((p: any) => p.title === title)).filter(Boolean);
+    },
+    enabled: !!data?.products?.length,
+  });
 
   // Hàm đăng xuất
   const handleSignOut = () => {
@@ -177,6 +220,23 @@ const Home = () => {
           contentContainerStyle={styles.bestSellerList}
           style={{ marginBottom: 8 }}
         />
+        {/* Gợi ý cho bạn (content-based) */}
+        {contentBasedRecommendations && contentBasedRecommendations.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Gợi ý cho bạn</Text>
+            <FlatList
+              data={contentBasedRecommendations}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={(item, index) => `${item.id}_${index}`}
+              renderItem={({ item }) => (
+                <ProductListItem product={item} cardWidth={140} />
+              )}
+              contentContainerStyle={styles.bestSellerList}
+              style={{ marginBottom: 8 }}
+            />
+          </>
+        )}
         {/* Sản phẩm đã xem gần đây */}
         {recentProducts.length > 0 && (
           <>

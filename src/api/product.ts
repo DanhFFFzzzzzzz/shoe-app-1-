@@ -66,13 +66,14 @@ export const productApi = {
         return [];
       }
 
-      const response = await fetch(`${API_BASE}?id=${productId}`);
+      // Sửa endpoint cho đúng với backend Flask
+      const response = await fetch(`${API_BASE}/content-based?id=${productId}`);
       if (!response.ok) {
         throw new Error(`Failed to fetch recommendations: ${response.statusText}`);
       }
 
       const data = await response.json();
-      return data['san pham goi y'];
+      return data['goi_y_noi_dung'] || [];
     } catch (error) {
       console.error('Error fetching recommendations:', error);
       return [];
@@ -103,5 +104,23 @@ export const productApi = {
       .eq('id', productId);
 
     if (updateError) throw updateError;
+  },
+
+  getCollaborativeRecommendations: async (userId: string) => {
+    try {
+      if (!API_BASE) {
+        console.error('❌ Biến môi trường NEXT_PUBLIC_RECOMMENDATION_API chưa được thiết lập!');
+        return [];
+      }
+      const response = await fetch(`${API_BASE}/collaborative?user=${userId}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch collaborative recommendations: ${response.statusText}`);
+      }
+      const data = await response.json();
+      return data['goi_y_cong_tac'] || [];
+    } catch (error) {
+      console.error('Error fetching collaborative recommendations:', error);
+      return [];
+    }
   }
 };

@@ -11,12 +11,14 @@ export const ProductListItem = ({ product, cardWidth = 170 }: ProductListItemPro
   return (
     <Link asChild href={`/product/${product.slug}`}>
       <Pressable style={[styles.item, { width: cardWidth }]}> 
-        <View style={[styles.container, { width: cardWidth }]}> 
-          <Image
-            source={{ uri: product.heroImage }}
-            style={styles.image}
-            resizeMode="cover"
-          />
+        <View style={[styles.card, { width: cardWidth }]}> 
+          <View style={styles.imageBox}>
+            <Image
+              source={{ uri: product.heroImage }}
+              style={styles.image}
+              resizeMode="cover"
+            />
+          </View>
           <Text style={styles.title} numberOfLines={2}>{product.title}</Text>
           <Text style={styles.price}>
             {product.price.toLocaleString('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 })}
@@ -28,41 +30,53 @@ export const ProductListItem = ({ product, cardWidth = 170 }: ProductListItemPro
 };
 
 const styles = StyleSheet.create({
-  container: {
+  card: {
     backgroundColor: '#fff',
-    borderRadius: 14,
-    overflow: 'hidden',
+    borderRadius: 16,
     alignItems: 'center',
-    marginBottom: 10,
+    marginRight: 14,
     padding: 10,
+    width: 140,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.10,
     shadowRadius: 8,
-    elevation: 2,
+    elevation: 3,
+    marginBottom: 8,
+  },
+  imageBox: {
+    width: 110,
+    height: 110,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: '#f2f2f2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+    borderRadius: 14,
+  },
+  title: {
+    fontSize: 15,
+    color: '#222',
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 4,
+    minHeight: 38,
+  },
+  price: {
+    fontSize: 15,
+    color: '#1976d2',
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 2,
   },
   item: {
     marginHorizontal: 5,
     marginBottom: 10,
-  },
-  image: {
-    width: '100%',
-    height: 110,
-    borderRadius: 10,
-    marginBottom: 8,
-    backgroundColor: '#f2f2f2',
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    color: '#222',
-    marginBottom: 4,
-  },
-  price: {
-    fontSize: 14,
-    color: '#1976d2',
-    fontWeight: 'bold',
-    marginBottom: 2,
   },
 });
