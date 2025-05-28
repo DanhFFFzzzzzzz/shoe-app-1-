@@ -287,7 +287,7 @@ const ProductDetails = () => {
 
       <View style={styles.contentBox}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <Text style={styles.title}>{product.title}</Text>
+        <Text style={styles.title}>{product.title}</Text>
           {userId && (
             <Pressable onPress={toggleFavorite} hitSlop={10} style={{ marginLeft: 8 }}>
               <MaterialIcons
@@ -349,7 +349,7 @@ const ProductDetails = () => {
       </View>
 
       {/* Sản phẩm gợi ý */}
-      <ProductRecommendations currentProductId={product.id} />
+        <ProductRecommendations currentProductId={product.id} />
 
       {/* Đánh giá sản phẩm */}
       <ProductReviews productId={product.id} />
