@@ -33,10 +33,8 @@ const Home = () => {
   const { user } = useAuth();
 
   useEffect(() => {
-    // Lấy sản phẩm đã xem gần đây từ AsyncStorage
     const fetchRecent = async () => {
       try {
-        // Giả sử userId là 'guest' nếu chưa đăng nhập
         const key = `recently_viewed_guest`;
         const json = await AsyncStorage.getItem(key);
         let arr = json ? JSON.parse(json) : [];
@@ -48,55 +46,48 @@ const Home = () => {
     fetchRecent();
   }, []);
 
-  // Auto slide banner
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentBanner(prev => (prev + 1) % BANNERS.length);
-    }, 2500); // 2.5 giây đổi ảnh
+    }, 2500);
     return () => clearInterval(interval);
   }, []);
 
-  // Lấy sản phẩm collaborative recommendation
+  // Sử dụng 'postgres' làm user_id thay vì UUID
+  const userId = 'postgres'; // Hardcode thành 'postgres'
+  
+
   const { data: collaborativeRecommendations, isLoading: isLoadingCollaborative } = useQuery({
-    queryKey: ['collaborativeRecommendations', user?.id],
+    queryKey: ['collaborativeRecommendations', userId],
     queryFn: async () => {
-      if (!user?.id) return [];
-      // Lấy danh sách title từ collaborative API
-      const titles = await productApi.getCollaborativeRecommendations(user.id);
+      const titles = await productApi.getCollaborativeRecommendations(userId);
       if (!titles.length) return [];
-      // Lấy chi tiết sản phẩm từ Supabase theo title
       const { data: products, error } = await supabase
         .from('product')
         .select('*')
         .in('title', titles);
       if (error) return [];
-      // Sắp xếp lại theo thứ tự titles
       return titles.map((title: string) => products.find((p: any) => p.title === title)).filter(Boolean);
     },
-    enabled: !!user?.id,
+    enabled: !!userId,
   });
 
-  // Lấy sản phẩm gợi ý content-based cho user (dựa trên sản phẩm đầu tiên)
   const { data: contentBasedRecommendations, isLoading: isLoadingContentBased } = useQuery({
     queryKey: ['contentBasedRecommendations', data?.products?.[0]?.id],
     queryFn: async () => {
       if (!data?.products?.length) return [];
-      // Lấy gợi ý theo sản phẩm đầu tiên
       const titles = await productApi.getProductRecommendations(data.products[0].id);
       if (!titles.length) return [];
-      // Lấy chi tiết sản phẩm từ Supabase theo title
       const { data: productsData, error } = await supabase
         .from('product')
         .select('*')
         .in('title', titles);
       if (error) return [];
-      // Sắp xếp lại theo thứ tự titles
       return titles.map((title: string) => productsData.find((p: any) => p.title === title)).filter(Boolean);
     },
     enabled: !!data?.products?.length,
   });
 
-  // Hàm đăng xuất
   const handleSignOut = () => {
     Alert.alert(
       'Đăng xuất',
@@ -129,7 +120,7 @@ const Home = () => {
   if (error || !data) return (
     <View style={styles.centered}>
       <MaterialIcons name="error-outline" size={40} color="#e53935" />
-      <Text style={styles.errorText}>Đã xảy ra lỗi: {error?.message || 'An error occured'}</Text>
+      <Text style={styles.errorText}>Đã xảy ra lỗi: {error?.message || 'An error occurred'}</Text>
     </View>
   );
 
@@ -139,7 +130,6 @@ const Home = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f5f7fa' }}>
-      {/* Header cố định trên cùng */}
       <View style={styles.headerBox}>
         <TouchableOpacity onPress={handleSignOut} style={styles.headerSignOutBtn} activeOpacity={0.7}>
           <Ionicons name="log-out-outline" size={28} color="#e53935" />
@@ -167,16 +157,13 @@ const Home = () => {
           </View>
         </TouchableOpacity>
       </View>
-      {/* Nội dung có thể kéo */}
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Banner auto-slide */}
         <View style={{ alignItems: 'center' }}>
           <Image
             source={{ uri: BANNERS[currentBanner].url }}
             style={styles.banner}
             resizeMode="cover"
           />
-          {/* Indicator dots */}
           <View style={styles.dotsRow}>
             {BANNERS.map((b, idx) => (
               <View
@@ -189,7 +176,6 @@ const Home = () => {
             ))}
           </View>
         </View>
-        {/* Danh mục nổi bật */}
         <Text style={styles.sectionTitle}>Danh mục nổi bật</Text>
         <FlatList
           data={categories}
@@ -207,7 +193,6 @@ const Home = () => {
           contentContainerStyle={styles.categoryList}
           style={{ marginBottom: 8 }}
         />
-        {/* Sản phẩm bán chạy */}
         <Text style={styles.sectionTitle}>Bán chạy nhất</Text>
         <FlatList
           data={bestSellers}
@@ -220,12 +205,15 @@ const Home = () => {
           contentContainerStyle={styles.bestSellerList}
           style={{ marginBottom: 8 }}
         />
-        {/* Gợi ý cho bạn (content-based) */}
-        {contentBasedRecommendations && contentBasedRecommendations.length > 0 && (
+        {isLoadingCollaborative ? (
+          <View style={styles.centered}>
+            <ActivityIndicator size="small" color="#1976d2" />
+          </View>
+        ) : collaborativeRecommendations && collaborativeRecommendations.length > 0 ? (
           <>
             <Text style={styles.sectionTitle}>Gợi ý cho bạn</Text>
             <FlatList
-              data={contentBasedRecommendations}
+              data={collaborativeRecommendations}
               horizontal
               showsHorizontalScrollIndicator={false}
               keyExtractor={(item, index) => `${item.id}_${index}`}
@@ -236,8 +224,9 @@ const Home = () => {
               style={{ marginBottom: 8 }}
             />
           </>
+        ) : (
+          <Text style={[styles.sectionTitle, { textAlign: 'center', color: '#757575' }]}>Không có gợi ý cho bạn</Text>
         )}
-        {/* Sản phẩm đã xem gần đây */}
         {recentProducts.length > 0 && (
           <>
             <Text style={styles.sectionTitle}>Đã xem gần đây</Text>
@@ -259,7 +248,6 @@ const Home = () => {
             />
           </>
         )}
-        {/* Tất cả sản phẩm */}
         <Text style={styles.sectionTitle}>Tất cả sản phẩm</Text>
         <FlatList
           data={products}
@@ -276,8 +264,8 @@ const Home = () => {
   );
 };
 
-export default Home;
 
+export default Home;
 const styles = StyleSheet.create({
   banner: {
     width: width - 28,
