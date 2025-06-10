@@ -1,4 +1,7 @@
 import { create } from 'zustand';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 
 // Định nghĩa kiểu dữ liệu cho sản phẩm trong giỏ hàng
 export type CartItemType = {
@@ -40,61 +43,86 @@ type CartState = {
 // Khởi tạo giỏ hàng rỗng ban đầu
 const initialCartItems: CartItemType[] = [];
 
+// Helper lấy userId hiện tại
+async function getCurrentUserId() {
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.id || 'guest';
+}
+
 export const useCartStore = create<CartState>((set, get) => ({
   items: initialCartItems,
 
   // Hàm thêm sản phẩm vào giỏ hàng
-  addItem: (item) => {
+  addItem: async (item) => {
     const defaultItem: CartItemType = {
       ...item,
       quantity: item.quantity ?? 1,
       maxQuantity: item.maxQuantity ?? 10,
       size: item.size,
     };
-
+    const userId = await getCurrentUserId();
+    const key = `cart_items_${userId}`;
     const existingItem = get().items.find(i => i.id === item.id && i.size === item.size);
-
     if (existingItem) {
-      // Nếu sản phẩm đã có trong giỏ, tăng số lượng nhưng không vượt quá giới hạn
       const newQuantity = Math.min(existingItem.quantity + (defaultItem.quantity ?? 1), existingItem.maxQuantity);
-      set(state => ({
-        items: state.items.map(i =>
+      set(state => {
+        const newItems = state.items.map(i =>
           i.id === item.id && i.size === item.size
             ? { ...i, quantity: newQuantity }
             : i
-        ),
-      }));
+        );
+        AsyncStorage.setItem(key, JSON.stringify(newItems));
+        return { items: newItems };
+      });
     } else {
-      // Nếu là sản phẩm mới, thêm vào giỏ
-      set(state => ({ items: [...state.items, defaultItem] }));
+      set(state => {
+        const newItems = [...state.items, defaultItem];
+        AsyncStorage.setItem(key, JSON.stringify(newItems));
+        return { items: newItems };
+      });
     }
   },
 
   // Xoá sản phẩm theo ID và size
-  removeItem: (id: number, size: number) =>
-    set(state => ({
-      items: state.items.filter(item => !(item.id === id && item.size === size)),
-    })),
+  removeItem: async (id: number, size: number) => {
+    const userId = await getCurrentUserId();
+    const key = `cart_items_${userId}`;
+    set(state => {
+      const newItems = state.items.filter(item => !(item.id === id && item.size === size));
+      AsyncStorage.setItem(key, JSON.stringify(newItems));
+      return { items: newItems };
+    });
+  },
 
   // Tăng số lượng sản phẩm (nếu chưa đạt maxQuantity)
-  incrementItem: (id: number) =>
-    set(state => ({
-      items: state.items.map(item =>
+  incrementItem: async (id: number) => {
+    const userId = await getCurrentUserId();
+    const key = `cart_items_${userId}`;
+    set(state => {
+      const newItems = state.items.map(item =>
         item.id === id && item.quantity < item.maxQuantity
           ? { ...item, quantity: item.quantity + 1 }
           : item
-      ),
-    })),
+      );
+      AsyncStorage.setItem(key, JSON.stringify(newItems));
+      return { items: newItems };
+    });
+  },
 
   // Giảm số lượng sản phẩm (tối thiểu là 1)
-  decrementItem: (id: number) =>
-    set(state => ({
-      items: state.items.map(item =>
+  decrementItem: async (id: number) => {
+    const userId = await getCurrentUserId();
+    const key = `cart_items_${userId}`;
+    set(state => {
+      const newItems = state.items.map(item =>
         item.id === id && item.quantity > 1
           ? { ...item, quantity: item.quantity - 1 }
           : item
-      ),
-    })),
+      );
+      AsyncStorage.setItem(key, JSON.stringify(newItems));
+      return { items: newItems };
+    });
+  },
 
   // Tính tổng tiền giỏ hàng
   getTotalPrice: () => {
@@ -109,5 +137,35 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   // Reset giỏ hàng
-  resetCart: () => set({ items: initialCartItems }),
+  resetCart: async () => {
+    const userId = await getCurrentUserId();
+    const key = `cart_items_${userId}`;
+    AsyncStorage.setItem(key, JSON.stringify(initialCartItems));
+    set({ items: initialCartItems });
+  },
 }));
+
+// Đọc lại giỏ hàng từ AsyncStorage khi app khởi động hoặc khi user đổi
+export const useCartStoreHydration = () => {
+  useEffect(() => {
+    const loadCart = async () => {
+      const userId = await getCurrentUserId();
+      const key = `cart_items_${userId}`;
+      const json = await AsyncStorage.getItem(key);
+      if (json) {
+        const items = JSON.parse(json);
+        useCartStore.setState({ items });
+      } else {
+        useCartStore.setState({ items: initialCartItems });
+      }
+    };
+    loadCart();
+    // Lắng nghe sự kiện đăng nhập/đăng xuất để load lại giỏ hàng
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      loadCart();
+    });
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, []);
+};

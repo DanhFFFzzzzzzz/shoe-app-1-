@@ -6,6 +6,8 @@ import { Tables } from '../types/database.types';
 import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 
+const API_BASE = process.env.NEXT_PUBLIC_PRODUCT_API || "http://192.168.1.5:3000/api";
+
 // Định nghĩa kiểu dữ liệu cho response của API lấy sản phẩm và danh mục
 type ProductsAndCategories = {
   products: Tables<'product'>[];
@@ -34,7 +36,7 @@ export const getProductsAndCategories = async (): Promise<ProductsAndCategories>
 };
 
 /**
- * Hook để lấy thông tin chi tiết của một sản phẩm theo slug
+ * Hook để lấy thông tin chi tiết của một sản phẩm theo slug theo size và hàng tồn kho
  * @param slug - Slug của sản phẩm cần lấy
  * @returns Query hook chứa thông tin sản phẩm và các size có sẵn
  */
@@ -119,24 +121,16 @@ export const getMyOrders = () => {
   return useQuery({
     queryKey: ['orders', user.id],
     queryFn: async () => {
-      // Kiểm tra phiên đăng nhập
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error('Không tìm thấy phiên đăng nhập');
       }
-      // Lấy danh sách đơn hàng của user, sắp xếp theo thời gian tạo mới nhất
       const { data, error } = await supabase
         .from('order')
         .select('*')
         .order('created_at', { ascending: false })
         .eq('user', user.id);
       if (error) {
-        if (error.message && error.message.toLowerCase().includes('jwt expired')) {
-          Alert.alert('Phiên đăng nhập đã hết hạn', 'Vui lòng đăng nhập lại.');
-          await supabase.auth.signOut();
-          router.replace('/auth');
-        }
-        console.error('Lỗi lấy danh sách đơn hàng:', error);
         throw new Error('Không thể lấy danh sách đơn hàng: ' + error.message);
       }
       return data;
@@ -159,24 +153,21 @@ export const createOrder = () => {
       customer_name,
       customer_phone,
       customer_address,
+      payment_method = 'cod',
     }: {
       totalPrice: number;
       customer_name: string;
       customer_phone: string;
       customer_address: string;
+      payment_method?: string;
     }) {
-      // Kiểm tra đăng nhập
       if (!user?.id) {
         throw new Error('Bạn cần đăng nhập để đặt hàng.');
       }
-
-      // Kiểm tra phiên đăng nhập
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error('Không tìm thấy phiên đăng nhập');
       }
-
-      // Không generateOrderSlug ở client, không truyền slug
       const { data, error } = await supabase
         .from('order')
         .insert({
@@ -186,20 +177,16 @@ export const createOrder = () => {
           customer_name,
           customer_phone,
           customer_address,
+          payment_method,
+          slug: generateOrderSlug(),
         })
         .select('*')
         .single();
-
       if (error) {
-        console.error('Lỗi tạo đơn hàng:', error);
         throw new Error('Không thể tạo đơn hàng: ' + error.message);
       }
-
-      // Nếu cần dùng slug, lấy từ data.slug
       return data;
     },
-
-    // Sau khi tạo đơn hàng thành công, cập nhật lại danh sách đơn hàng
     async onSuccess() {
       await queryClient.invalidateQueries({ queryKey: ['orders'] });
     },
@@ -225,7 +212,7 @@ export const createOrderItem = () => {
         .from('order_item')
         .insert(
           insertData.map(({ orderId, quantity, productId, size }) => ({
-            order: orderId,
+            order_id: orderId,
             product: productId,
             quantity,
             size,
@@ -274,7 +261,6 @@ export const getMyOrder = (slug: string) => {
         .single();
 
       if (error) {
-        console.error('Lỗi lấy thông tin đơn hàng:', error);
         throw new Error('Không thể lấy thông tin đơn hàng: ' + error.message);
       }
 
@@ -304,7 +290,9 @@ export const updateProductQuantity = async (productId: number, size: number, qua
   }
 
   // Gọi API cập nhật số lượng
-  const response = await fetch(`http://192.168.1.4:3000/api/products/${productId}/update-quantity`, {
+  const url = `${API_BASE}/products/${productId}/update-quantity`;
+  console.log('[UpdateQuantity] Gọi API:', url);
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -317,6 +305,8 @@ export const updateProductQuantity = async (productId: number, size: number, qua
   });
 
   if (!response.ok) {
+    const text = await response.text();
+    console.error('[UpdateQuantity] Lỗi:', response.status, text);
     throw new Error('Không thể cập nhật số lượng sản phẩm');
   }
 
@@ -345,4 +335,21 @@ export const useCancelOrder = () => {
       await queryClient.invalidateQueries({ queryKey: ['orders'] });
     },
   });
+};
+
+/**
+ * Hàm xóa đơn hàng theo id hoặc slug
+ * @param idOrSlug - id (number) hoặc slug (string) của đơn hàng
+ * @returns Promise kết quả xóa
+ */
+export const deleteOrder = async (idOrSlug: number | string) => {
+  let query = supabase.from('order').delete();
+  if (typeof idOrSlug === 'number') {
+    query = query.eq('id', idOrSlug);
+  } else {
+    query = query.eq('slug', idOrSlug);
+  }
+  const { error } = await query;
+  if (error) throw new Error('Không thể xóa đơn hàng: ' + error.message);
+  return true;
 };

@@ -28,10 +28,10 @@ const Category = () => {
 
   if (isLoading) return <ActivityIndicator />;
   if (error || !data) return <Text>Error: {error?.message ?? String(error)}</Text>;
-
+// tim danh kiem danh muc theo slug
   const category = data.categories.find((cat: Tables<'category'>) => cat.slug === slug);
   if (!category) return <Redirect href='/404' />;
-
+// loc danh sach san pham theo danh muc
   const products = data.products.filter((product: Tables<'product'>) => product.category === category.id);
 
   return (

@@ -79,6 +79,15 @@ const CartItem = ({
   );
 };
 
+// Thêm type cho order
+type OrderInput = {
+  totalPrice: number;
+  customer_name: string;
+  customer_phone: string;
+  customer_address: string;
+  payment_method?: string;
+};
+
 export default function Cart() {
   const {
     items,
@@ -125,7 +134,7 @@ export default function Cart() {
     }
     setLoadingLocation(false);
   };
-
+// Hàm xử lý thanh toán
   const handleCheckout = async () => {
     if (isSubmitting) return; // Chặn double submit
     setIsSubmitting(true);
@@ -188,7 +197,7 @@ export default function Cart() {
     }
   };
 
-  // Thêm hàm kiểm tra và lấy token
+  // Hàm lấy token - dùng chung
   const getValidToken = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -199,66 +208,12 @@ export default function Cart() {
     }
   };
 
-  // Thêm lại useEffect lắng nghe callback từ VNPay
-  useEffect(() => {
-    const handleDeepLink = async (event: { url: string }) => {
-      const url = event.url;
-      if (url.includes('vnpay-return')) { 
-        try {
-          const params = new URLSearchParams(url.split('?')[1] || '');
-          const responseCode = params.get('vnp_ResponseCode');
-          const txnRef = params.get('vnp_TxnRef');
-          const pendingOrderId = await AsyncStorage.getItem('pendingOrderId');
-
-          if (!pendingOrderId) {
-            throw new Error('Không tìm thấy thông tin đơn hàng');
-          }
-
-          const { data: { session } } = await supabase.auth.getSession();
-          const token = session?.access_token || '';
-          if (!token) {
-            throw new Error('Không tìm thấy phiên đăng nhập');
-          }
-
-          if (responseCode === '00') {
-            // Cập nhật trạng thái đơn hàng thành công
-            const response = await fetch(`http://192.168.1.4:3000/api/orders/${pendingOrderId}/confirm`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${token}`
-              }
-            });
-
-            if (!response.ok) {
-              throw new Error('Không thể cập nhật trạng thái đơn hàng');
-            }
-
-            Alert.alert('Thanh toán VNPay thành công!', `Mã giao dịch: ${txnRef}`);
-            resetCart();
-          } else {
-            // Xóa đơn hàng tạm nếu thanh toán thất bại
-            await fetch(`http://192.168.1.4:3000/api/orders/${pendingOrderId}`, {
-              method: 'DELETE',
-              headers: {
-                'Authorization': `Bearer ${token}`
-              }
-            });
-            Alert.alert('Thanh toán VNPay thất bại', `Mã lỗi: ${responseCode}. Vui lòng thử lại.`);
-          }
-        } catch (error) {
-          console.error('Lỗi xử lý callback VNPay:', error);
-          Alert.alert('Lỗi', 'Không thể xử lý kết quả thanh toán. Vui lòng liên hệ hỗ trợ.');
-        } finally {
-          // Xóa pendingOrderId trong mọi trường hợp
-          await AsyncStorage.removeItem('pendingOrderId');
-        }
-      }
-    };
-    const subscription = Linking.addEventListener('url', handleDeepLink);
-    return () => {
-      subscription.remove();
-    };
-  }, [resetCart]);
+  // Hàm xử lý lỗi chung
+  const handleError = (error: unknown, defaultMessage: string) => {
+    const message = error instanceof Error ? error.message : String(error) || defaultMessage;
+    Alert.alert('Lỗi', message);
+    console.error(message, error);
+  };
 
   // Hàm xóa sản phẩm khỏi giỏ hàng và trả lại số lượng tồn kho
   const handleRemoveFromCart = (item: CartItemType) => {

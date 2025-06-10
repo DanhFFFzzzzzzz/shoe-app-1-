@@ -10,14 +10,15 @@ import { supabase } from '../lib/supabase';
 import { Toast } from 'react-native-toast-notifications';
 import { useAuth } from '../providers/auth-provider';
 
+// Xác định schema cho các form đăng nhập và đăng ký
 const signInSchema = zod.object({
-    email: zod.string().email({message: 'Invalid email address'}),
-    password: zod.string().min(6, {message: 'Password must be at least 6 characters long'}),
+    email: zod.string().email({message: 'Địa chỉ email không hợp lệ'}),
+    password: zod.string().min(6, {message: 'Password phải ít nhất 6 ký tự'}),
 });
 const signUpSchema = zod.object({
     name: zod.string().min(2, {message: 'Vui lòng nhập tên'}),
-    email: zod.string().email({message: 'Invalid email address'}),
-    password: zod.string().min(6, {message: 'Password must be at least 6 characters long'}),
+    email: zod.string().email({message: 'Địa chỉ email không hợp lệ'}),
+    password: zod.string().min(6, {message: 'Password phải ít nhất 6 ký tự'}),
     gender: zod.string().min(1, {message: 'Vui lòng nhập giới tính'}),
     address: zod.string().min(2, {message: 'Vui lòng nhập địa chỉ'}),
     phone: zod.string().min(8, {message: 'Vui lòng nhập số điện thoại'}),
@@ -53,6 +54,7 @@ export default function Auth(){
   });
 
   const signIn = async (data: SignInForm) => {
+    // Gọi API đăng nhập của Supabase
     const { error } = await supabase.auth.signInWithPassword({
       email: data.email,
       password: data.password,
@@ -60,7 +62,7 @@ export default function Auth(){
     if (error) {
       alert(error.message);
     } else {
-      Toast.show('Signed in successfully', {
+      Toast.show('Đăng nhập thành công', {
         type: 'success',
         placement: 'top',
         duration: 1500,
@@ -83,7 +85,7 @@ export default function Auth(){
     if (error) {
       alert(error.message);
     } else if (signUpData?.user?.id) {
-      // Do NOT insert into users table here, trigger will handle it
+      // Đăng ký thành công, lưu thông tin người dùng vào bảng profile
       Toast.show('Signed up successfully', {
         type: 'success',
         placement: 'top',
@@ -131,7 +133,7 @@ export default function Auth(){
             <Text style={styles.title}>Shoe Shop</Text>
           </View>
           
-          <Text style={styles.subtitle}>{isSignUp ? 'Create your account' : 'Welcome back'}</Text>
+          <Text style={styles.subtitle}>{isSignUp ? 'Tạo tài khoản mới' : 'Chào mừng quay lại'}</Text>
 
           {!isSignUp ? (
             <View key="sign-in" style={styles.form}>
@@ -187,7 +189,7 @@ export default function Auth(){
                 onPress={signInForm.handleSubmit(signIn)}
                 disabled={signInForm.formState.isSubmitting}
               >
-                <Text style={styles.buttonText}>Sign In</Text>
+                <Text style={styles.buttonText}>Đăng Nhập</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -202,7 +204,7 @@ export default function Auth(){
                   <View style={styles.inputContainer}>
                     <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
                     <TextInput
-                      placeholder='Full Name'
+                      placeholder='Họ và Tên'
                       style={styles.input}
                       value={value}
                       onChangeText={onChange}
@@ -272,7 +274,7 @@ export default function Auth(){
                   <View style={styles.inputContainer}>
                     <Ionicons name="transgender-outline" size={20} color="#666" style={styles.inputIcon} />
                     <TextInput
-                      placeholder='Gender'
+                      placeholder='Giới Tính'
                       style={styles.input}
                       value={value}
                       onChangeText={onChange}
@@ -295,7 +297,7 @@ export default function Auth(){
                   <View style={styles.inputContainer}>
                     <Ionicons name="location-outline" size={20} color="#666" style={styles.inputIcon} />
                     <TextInput
-                      placeholder='Address'
+                      placeholder='Địa Chỉ'
                       style={styles.input}
                       value={value}
                       onChangeText={onChange}
@@ -318,7 +320,7 @@ export default function Auth(){
                   <View style={styles.inputContainer}>
                     <Ionicons name="call-outline" size={20} color="#666" style={styles.inputIcon} />
                     <TextInput
-                      placeholder='Phone Number'
+                      placeholder='Số Điện Thoại'
                       style={styles.input}
                       value={value}
                       onChangeText={onChange}
@@ -347,7 +349,7 @@ export default function Auth(){
             disabled={signInForm.formState.isSubmitting || signUpForm.formState.isSubmitting}
           >
             <Text style={styles.secondaryButtonText}>
-              {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+              {isSignUp ? 'Đã có tài khoản? Đăng nhập' : "Chua có tài khoản? Đăng ký"}
             </Text>
           </TouchableOpacity>
         </View>

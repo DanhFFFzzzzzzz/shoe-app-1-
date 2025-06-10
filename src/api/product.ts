@@ -1,12 +1,11 @@
 import { supabase } from '../lib/supabase';
 import { ProductWithSizes } from '../types/database.types';
 
-
-//  địa chỉ API để kiểm tra khi chạy
-const API_BASE = "http://192.168.1.4:5555/api";
+// Lấy API_BASE từ biến môi trường, fallback về IP cứng nếu không có
+const API_BASE = process.env.NEXT_PUBLIC_RECOMMENDATION_API || "http://192.168.1.5:5555/api";
 
 export const productApi = {
-  // Lấy thông tin sản phẩm theo slug
+  // Lấy thông tin chi tiết của một sản phẩm dựa trên slug
   getProductBySlug: async (slug: string): Promise<ProductWithSizes> => {
     const { data, error } = await supabase
       .from('product')
@@ -26,7 +25,7 @@ export const productApi = {
     return { ...data, sizes: sizes || [] };
   },
 
-  // Cập nhật số lượng sản phẩm
+  // Cập nhật số lượng sản phẩm (giảm số lượng tồn kho)
   updateProductQuantity: async (productId: number, size: number, quantity: number) => {
     const { error } = await supabase.rpc('decrement_product_quantity', {
       p_product_id: productId,
@@ -48,7 +47,7 @@ export const productApi = {
     return data;
   },
 
-  // Tăng lại số lượng
+  // Tăng lại số lượng (thêm sản phẩm vào kho)
   incrementProductQuantity: async (productId: number, size: number, quantity: number) => {
     const { error } = await supabase.rpc('increment_product_quantity', {
       p_product_id: productId,
@@ -58,21 +57,29 @@ export const productApi = {
     if (error) throw error;
   },
 
-  // ✅ Gợi ý sản phẩm (dùng biến môi trường cho IP)
+  // ✅ Gợi ý sản phẩm  dựa trên nội dung (dùng biến môi trường cho IP)
   getProductRecommendations: async (productId: number) => {
     try {
+      console.log('Gọi gợi ý với productId:', productId);
       if (!API_BASE) {
         console.error('❌ Biến môi trường NEXT_PUBLIC_RECOMMENDATION_API chưa được thiết lập!');
         return [];
       }
-
-      // Sửa endpoint cho đúng với backend Flask
-      const response = await fetch(`${API_BASE}/content-based?id=${productId}`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch recommendations: ${response.statusText}`);
+      const id = Number(productId);
+      if (isNaN(id)) {
+        console.error('❌ productId không phải là số:', productId);
+        return [];
       }
-
+      const url = `${API_BASE}/content-based?id=${id}`;
+      console.log('🌐 Gọi API:', url);
+      const response = await fetch(url);
+      console.log('📡 Response status:', response.status);
       const data = await response.json();
+      console.log('📦 Dữ liệu trả về:', data);
+      if (data.error) {
+        console.error('❌ Lỗi từ backend:', data.error);
+        return [];
+      }
       return data['goi_y_noi_dung'] || [];
     } catch (error) {
       console.error('Error fetching recommendations:', error);
@@ -87,7 +94,7 @@ export const productApi = {
     return data;
   },
 
-  // Cập nhật maxQuantity
+  // Cập nhật tổng số lượng tồn kho maxQuantity
   updateProductMaxQuantity: async (productId: number) => {
     const { data: sizes, error } = await supabase
       .from('product_size')
@@ -105,18 +112,24 @@ export const productApi = {
 
     if (updateError) throw updateError;
   },
-
+// Lấy gợi ý sản phẩm dựa trên sở thích người dùng (collaborative filtering)
   getCollaborativeRecommendations: async (userId: string) => {
     try {
+      console.log('Gọi gợi ý collaborative với userId:', userId);
       if (!API_BASE) {
         console.error('❌ Biến môi trường NEXT_PUBLIC_RECOMMENDATION_API chưa được thiết lập!');
         return [];
       }
-      const response = await fetch(`${API_BASE}/collaborative?user=${userId}`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch collaborative recommendations: ${response.statusText}`);
-      }
+      const url = `${API_BASE}/collaborative?user=${userId}`;
+      console.log('🌐 Gọi API:', url);
+      const response = await fetch(url);
+      console.log('📡 Response status:', response.status);
       const data = await response.json();
+      console.log('📦 Dữ liệu trả về:', data);
+      if (data.error) {
+        console.error('❌ Lỗi từ backend:', data.error);
+        return [];
+      }
       return data['goi_y_cong_tac'] || [];
     } catch (error) {
       console.error('Error fetching collaborative recommendations:', error);

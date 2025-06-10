@@ -7,6 +7,7 @@ import { supabase } from '../../../lib/supabase';
 import { ProductReviews } from '../../../components/product/ProductReviews';
 import { productApi } from '../../../api/product';
 
+// Chi tiet đơn hàng
 const OrderDetails = () => {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const { data: order, error, isLoading } = getMyOrder(slug);
@@ -27,7 +28,7 @@ const OrderDetails = () => {
     };
   });
 
-  // Thêm hàm chuyển đổi trạng thái
+  // hàm chuyển đổi trạng thái
   const getOrderStatusVN = (status: string) => {
     switch (status) {
       case 'Pending':

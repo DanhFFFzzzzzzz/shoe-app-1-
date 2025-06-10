@@ -19,6 +19,10 @@ type ProductReviewsProps = {
   orderId?: number;
 };
 
+function isUserWithName(user: unknown): user is { name: string } {
+  return typeof user === 'object' && user !== null && 'name' in user && typeof (user as any).name === 'string';
+}
+
 export const ProductReviews = ({ productId, orderId }: ProductReviewsProps) => {
   const [reviews, setReviews] = useState<Tables<'product_review'>[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,7 +39,7 @@ export const ProductReviews = ({ productId, orderId }: ProductReviewsProps) => {
     fetchReviews();
     checkCanReview();
   }, [productId, orderId]);
-
+// Lấy danh sách đánh giá sản phẩm từ Supabase
   const fetchReviews = async () => {
     try {
       const { data, error } = await supabase
@@ -78,7 +82,7 @@ export const ProductReviews = ({ productId, orderId }: ProductReviewsProps) => {
       setLoading(false);
     }
   };
-
+// Kiểm tra xem người dùng có thể đánh giá sản phẩm hay không
   const checkCanReview = async () => {
     try {
       const {
@@ -154,7 +158,7 @@ export const ProductReviews = ({ productId, orderId }: ProductReviewsProps) => {
       console.error('❌ Error checking review eligibility:', error);
     }
   };
-
+// Xử lý gửi đánh giá sản phẩm
   const handleSubmitReview = async () => {
     if (!userRating) {
       toast.show('Vui lòng chọn số sao đánh giá', {
@@ -323,7 +327,7 @@ export const ProductReviews = ({ productId, orderId }: ProductReviewsProps) => {
             <View key={item.id} style={styles.reviewItem}>
               <View style={styles.reviewHeader}>
                 <Text style={styles.reviewerName}>
-                  {item.user && item.user.name ? item.user.name : 'Khách hàng'}
+                  {isUserWithName(item.user) ? item.user.name : 'Khách hàng'}
                 </Text>
                 <Text style={styles.reviewDate}>
                   {new Date(item.created_at).toLocaleDateString('vi-VN')}

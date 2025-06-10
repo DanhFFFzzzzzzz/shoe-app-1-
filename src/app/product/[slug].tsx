@@ -26,7 +26,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 const IMAGE_SIZE = 90;
-
+// Chi tiêt sản phẩm
 const ProductDetails = () => {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const toast = useToast();
@@ -42,7 +42,7 @@ const ProductDetails = () => {
   const [favoriteId, setFavoriteId] = useState<number | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
-  // Fetch product data
+  // Lấy thông tin sản phẩm theo slug
   useEffect(() => {
     const fetchProduct = async () => {
       try {
@@ -101,7 +101,7 @@ const ProductDetails = () => {
     if (!product || !userId) return;
     checkFavorite();
   }, [product?.id, userId]);
-
+// Kiểm tra sản phẩm có trong danh sách yêu thích không
   const checkFavorite = async () => {
     if (!product || !userId) return;
     try {
@@ -118,7 +118,7 @@ const ProductDetails = () => {
       setFavoriteId(null);
     }
   };
-
+// Thao tác thêm/bỏ sản phẩm vào danh sách yêu thích
   const toggleFavorite = async () => {
     if (!product || !userId) {
       toast.show('Bạn cần đăng nhập để sử dụng tính năng này!', { type: 'warning' });
@@ -145,14 +145,26 @@ const ProductDetails = () => {
     }
   };
 
+  // Đọc lại size đã chọn khi vào trang chi tiết sản phẩm
+  useEffect(() => {
+    if (!product) return;
+    const loadSelectedSize = async () => {
+      const savedSize = await AsyncStorage.getItem(`selected_size_${product.id}`);
+      if (savedSize) setSelectedSize(Number(savedSize));
+    };
+    loadSelectedSize();
+  }, [product?.id]);
+
   if (isLoading) return <ActivityIndicator style={{ flex: 1 }} size="large" color="#007bff" />;
   if (error) return <Text style={{ color: 'red', textAlign: 'center', marginTop: 40 }}>Error: {error}</Text>;
   if (!product) return <Redirect href='/404' />;
 
-  // Lấy size từ product.sizes
-  const availableSizesData = Array.isArray(product.sizes) ? product.sizes : [];
+  // Lấy size từ product.sizes và sắp xếp tăng dần
+  const availableSizesData = Array.isArray(product.sizes)
+    ? [...product.sizes].sort((a, b) => a.size - b.size)
+    : [];
 
-  // Kiểm tra xem size đã chọn có còn hàng không
+  // Kiểm tra xem size đã chọn có còn hàng không (hàng tồn kho)
   const isSizeOutOfStock = (size: number) => {
     const sizeObj = availableSizesData.find((s: any) => s.size === size);
     if (!sizeObj) return true;
@@ -173,7 +185,7 @@ const ProductDetails = () => {
     
     return sizeObj.quantity - cartQuantity;
   };
-
+// Hàm tăng/giảm số lượng sản phẩm
   const handleIncreaseQuantity = () => {
     if (!selectedSize) return;
     
@@ -194,7 +206,7 @@ const ProductDetails = () => {
       setQuantity((prev) => prev - 1);
     }
   };
-
+// Hàm thêm sản phẩm vào giỏ hàng
   const handleAddToCart = async () => {
     if (!selectedSize) {
       toast.show('Vui lòng chọn size', {
@@ -262,6 +274,14 @@ const ProductDetails = () => {
 
   const totalPrice = product.price * quantity;
 
+  // Khi chọn size, lưu vào AsyncStorage
+  const handleSelectSize = async (size: number) => {
+    setSelectedSize(size);
+    if (product) {
+      await AsyncStorage.setItem(`selected_size_${product.id}`, size.toString());
+    }
+  };
+
   return (
     <ScrollView style={styles.container}>
       <Stack.Screen options={{ title: product.title }} />
@@ -304,7 +324,7 @@ const ProductDetails = () => {
         <SizeSelector
           sizes={availableSizesData}
           selectedSize={selectedSize}
-          onSelectSize={setSelectedSize}
+          onSelectSize={handleSelectSize}
           getAvailableQuantity={getAvailableQuantity}
           isSizeOutOfStock={isSizeOutOfStock}
         />

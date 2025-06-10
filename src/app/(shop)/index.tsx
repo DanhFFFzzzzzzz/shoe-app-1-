@@ -61,6 +61,7 @@ const Home = () => {
     queryKey: ['collaborativeRecommendations', userId],
     queryFn: async () => {
       const titles = await productApi.getCollaborativeRecommendations(userId);
+
       if (!titles.length) return [];
       const { data: products, error } = await supabase
         .from('product')

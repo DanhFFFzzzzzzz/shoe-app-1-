@@ -3,9 +3,10 @@ import { ToastProvider } from "react-native-toast-notifications";
 import Auth from "./auth";
 import AuthProvider from "../providers/auth-provider";
 import QueryProvider from "../providers/query-provider";
+import { useCartStoreHydration } from "../store/cart-store";
 
 export default function RootLayout(){
-  
+  useCartStoreHydration();
   return(
     <ToastProvider>
         <AuthProvider>
@@ -36,5 +37,4 @@ export default function RootLayout(){
         </AuthProvider>
     </ToastProvider>
     );
-
 }

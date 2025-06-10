@@ -38,6 +38,7 @@ const AccountScreen = () => {
   const [changing, setChanging] = useState(false);
   const router = useRouter();
 
+  // Lây thông tin người dùng từ Supabase
   const fetchProfile = async () => {
     setLoading(true);
     try {
@@ -186,7 +187,7 @@ const AccountScreen = () => {
       Alert.alert('Lỗi', 'Có lỗi xảy ra khi đăng xuất!');
     }
   };
-
+// Hàm đổi mật khẩu
   const handleChangePassword = async () => {
     if (!oldPassword || !newPassword || !confirmPassword) {
       Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ thông tin!');

@@ -17,9 +17,9 @@ type AuthData = {
 };
 
 const AuthContext = createContext<AuthData>({
-  session: null,
-  mounting: true,
-  user: null,
+  session: null,// lưu thông tin phien đăng nhập của người dùng
+  mounting: true,//theo dõi trạng thái khởi tạo của AuthProvider
+  user: null,//lưu thông tin người dùng đã đăng nhập
 });
 
 export default function AuthProvider({ children }: PropsWithChildren) {
@@ -105,4 +105,4 @@ export default function AuthProvider({ children }: PropsWithChildren) {
   );
 }
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => useContext(AuthContext); 
