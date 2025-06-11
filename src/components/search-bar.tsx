@@ -3,7 +3,7 @@ import { View, TextInput, StyleSheet, Pressable } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-export const SearchBar = () => {
+export const SearchBar = ({ onFilterPress }: { onFilterPress?: () => void }) => {
   const [query, setQuery] = useState('');
   const router = useRouter();
 
@@ -25,6 +25,9 @@ export const SearchBar = () => {
       />
       <Pressable style={styles.iconContainer} onPress={handleSearch}>
         <FontAwesome name="search" size={20} color="#fff" />
+      </Pressable>
+      <Pressable style={styles.filterIconContainer} onPress={onFilterPress}>
+        <FontAwesome name="filter" size={20} color="#ff5722" />
       </Pressable>
     </View>
   );
@@ -60,5 +63,15 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  filterIconContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 8,
+    marginLeft: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ff5722',
   },
 }); 
